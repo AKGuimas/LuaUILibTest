@@ -399,12 +399,51 @@ function SpliceUI.Label(parent: Instance, text: string)
     lbl.Parent=parent; return lbl
 end
 
+-- Input (TextBox estilizado)
+function SpliceUI.Input(parent: Instance, opts: {placeholder: string?, key: string?})
+    local id = opts.key or ("input_"..HttpService:GenerateGUID(false))
+    local value = SpliceUI.GetState(id, "")
+
+    local box = New("TextBox", {
+        BackgroundColor3 = ActiveTheme.Colors.panel,
+        BackgroundTransparency = ActiveTheme.Transparency.panel,
+        Size = UDim2.new(1,0,0,36),
+        PlaceholderText = opts.placeholder or "Digite...",
+        Text = value,
+        Font = ActiveTheme.Font,
+        TextSize = 16,
+        TextColor3 = ActiveTheme.Colors.text,
+        PlaceholderColor3 = ActiveTheme.Colors.subtext,
+        ClearTextOnFocus = false,
+    })
+    New("UICorner", {CornerRadius = UDim.new(0, ActiveTheme.Corner)}).Parent = box
+    New("UIStroke", {Color = ActiveTheme.Colors.stroke, Transparency = 0.5}).Parent = box
+
+    -- salva estado quando perde o foco
+    box.FocusLost:Connect(function()
+        SpliceUI.SetState(id, box.Text)
+    end)
+
+    box.Parent = parent
+
+    return {
+        Instance = box,
+        Get = function() return box.Text end,
+        Set = function(t: string)
+            box.Text = t
+            SpliceUI.SetState(id, t)
+        end,
+        Changed = box:GetPropertyChangedSignal("Text"),
+    }
+end
+
+
 -- Notificações (stack, 2s padrão, contador)
 local notifyRoot: ScreenGui?; local notifyList: Frame?
 local function getNotifyRoot()
     if notifyRoot and notifyRoot.Parent then return notifyRoot, notifyList end
     notifyRoot = Instance.new("ScreenGui"); notifyRoot.Name="SpliceUI_Notify"; notifyRoot.ResetOnSpawn=false; notifyRoot.ZIndexBehavior=Enum.ZIndexBehavior.Sibling; notifyRoot.DisplayOrder=50
-    local parent = (ParentOverride and ParentOverride.Parent) and ParentOverride or PLAYER_GUI; notifyRoot.Parent=parent
+    local parent = resolveParent()
     notifyList = Instance.new("Frame"); notifyList.Name="List"; notifyList.AnchorPoint=Vector2.new(1,1); notifyList.Position=UDim2.new(1,-16,1,-16); notifyList.Size=UDim2.fromOffset(360,0); notifyList.BackgroundTransparency=1; notifyList.AutomaticSize=Enum.AutomaticSize.Y; notifyList.Parent=notifyRoot
     local layout = Instance.new("UIListLayout"); layout.FillDirection=Enum.FillDirection.Vertical; layout.VerticalAlignment=Enum.VerticalAlignment.Bottom; layout.HorizontalAlignment=Enum.HorizontalAlignment.Right; layout.Padding=UDim.new(0,8); layout.SortOrder=Enum.SortOrder.LayoutOrder; layout.Parent=notifyList
     return notifyRoot, notifyList
