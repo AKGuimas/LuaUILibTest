@@ -520,11 +520,49 @@ function SectionMT:NewDropdown(text, info, list, callback)
     return d
 end
 function SectionMT:NewTextBox(text, placeholder, callback)
-    SpliceUI.Label(self._parent, tostring(text or "Textbox"))
-    local i = SpliceUI.Input(self._parent, {placeholder=tostring(placeholder or "Digite...")})
-    if i.Changed then i.Changed:Connect(function() if typeof(callback)=="function" then callback(i.Get()) end end) end
-    return i
+  -- label acima, como no Kavo
+  SpliceUI.Label(self._parent, tostring(text or "Textbox"))
+
+  -- cria o input da base
+  local i = SpliceUI.Input(self._parent, { placeholder = tostring(placeholder or "Digite...") })
+
+  -- helper seguro para pegar o texto atual
+  local function currentText()
+    -- preferir API da lib, se existir
+    if typeof(i) == "table" then
+      if typeof(i.Get) == "function" then
+        local ok, v = pcall(i.Get)
+        if ok then return v end
+      end
+      -- fallback: se expuser o Instance
+      if typeof(i.Instance) == "Instance" and i.Instance:IsA("TextBox") then
+        return i.Instance.Text
+      end
+    end
+    return ""
+  end
+
+  -- dispara no change (quando disponível)
+  if typeof(i) == "table" and i.Changed and typeof(i.Changed.Connect) == "function" then
+    i.Changed:Connect(function()
+      if typeof(callback) == "function" then
+        callback(currentText())
+      end
+    end)
+  end
+
+  -- também dispara ao sair do foco (mais fiel ao Kavo)
+  if typeof(i) == "table" and typeof(i.Instance) == "Instance" and i.Instance:IsA("TextBox") then
+    i.Instance.FocusLost:Connect(function()
+      if typeof(callback) == "function" then
+        callback(currentText())
+      end
+    end)
+  end
+
+  return i
 end
+
 function SectionMT:NewLabel(text) return SpliceUI.Label(self._parent, tostring(text or "Label")) end
 
 -- Opcionais simples
