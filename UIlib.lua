@@ -124,13 +124,71 @@ local function MakeDraggable(frame: Frame, dragHandle: GuiObject?)
 end
 
 -- Root
+-- [NOVO] Resolve o container universal no estilo das UI libs:
+-- Prioridade:
+-- 1) ParentOverride (se você chamou Library.SetParentGui)
+-- 2) gethui() / get_hidden_gui() (executores)
+-- 3) CoreGui (protegendo com syn.protect_gui, se existir)
+-- 4) PlayerGui (fallback seguro no Studio/jogo normal)
+local function resolveParent()
+    -- 1) Parent explícito do usuário
+    if ParentOverride and ParentOverride.Parent then
+        return ParentOverride
+    end
+
+    -- 2) gethui / get_hidden_gui (se o executor expõe)
+    local ok, hui = pcall(function()
+        if typeof(gethui) == "function" then return gethui() end
+    end)
+    if ok and typeof(hui) == "Instance" then
+        return hui
+    end
+    local ok2, hidden = pcall(function()
+        if typeof(get_hidden_gui) == "function" then return get_hidden_gui() end
+    end)
+    if ok2 and typeof(hidden) == "Instance" then
+        return hidden
+    end
+
+    -- 3) CoreGui (com proteção se disponível)
+    local coreGui = game:GetService("CoreGui")
+    if coreGui then
+        return coreGui
+    end
+
+    -- 4) Fallback
+    return PLAYER_GUI
+end
+
+-- Substitua sua função createRoot por esta versão:
 local function createRoot(name: string)
-    local sg = New("ScreenGui", {Name=name, ResetOnSpawn=false, IgnoreGuiInset=true, ZIndexBehavior=Enum.ZIndexBehavior.Sibling, DisplayOrder=10})
-    local scale = New("UIScale", {Scale=1}); scale.Parent = sg
-    local parent = (ParentOverride and ParentOverride.Parent) and ParentOverride or PLAYER_GUI
+    local sg = Instance.new("ScreenGui")
+    sg.Name = name
+    sg.ResetOnSpawn = false
+    sg.IgnoreGuiInset = true
+    sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    sg.DisplayOrder = 10
+
+    local scale = Instance.new("UIScale")
+    scale.Scale = 1
+    scale.Parent = sg
+
+    -- Resolve container universal
+    local parent = resolveParent()
+
+    -- Se for CoreGui e houver syn.protect_gui, proteja antes de parentear
+    if parent == game:GetService("CoreGui") then
+        pcall(function()
+            if typeof(syn) == "table" and typeof(syn.protect_gui) == "function" then
+                syn.protect_gui(sg)
+            end
+        end)
+    end
+
     sg.Parent = parent
     return sg, scale
 end
+
 
 -- Theme API
 function SpliceUI.setTheme(themeName: string) local t = Themes[themeName]; if t then ActiveTheme=t end end
