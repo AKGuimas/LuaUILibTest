@@ -881,56 +881,145 @@ function SpliceUI.Input(parent: Instance, opts: {placeholder: string?, key: stri
 end
 
 -- Notificações toast
+-- [PATCH] — Container de notificações (único e reutilizável)
+local notifyRoot -- ScreenGui
+local notifyList -- Frame que empilha as toasts
+local function getNotifyRoot()
+    if notifyRoot and notifyRoot.Parent then return notifyRoot, notifyList end
+
+    notifyRoot = Instance.new("ScreenGui")
+    notifyRoot.Name = "SpliceUI_Notify"
+    notifyRoot.ResetOnSpawn = false
+    notifyRoot.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    notifyRoot.DisplayOrder = 50
+
+    -- respeita ParentOverride quando houver
+    local parentGui = (ParentOverride and ParentOverride.Parent) and ParentOverride or PLAYER_GUI
+    notifyRoot.Parent = parentGui
+
+    notifyList = Instance.new("Frame")
+    notifyList.Name = "List"
+    notifyList.AnchorPoint = Vector2.new(1,1)
+    notifyList.Position = UDim2.new(1, -16, 1, -16)
+    notifyList.Size = UDim2.fromOffset(360, 0)
+    notifyList.BackgroundTransparency = 1
+    notifyList.AutomaticSize = Enum.AutomaticSize.Y
+    notifyList.Parent = notifyRoot
+
+    local layout = Instance.new("UIListLayout")
+    layout.FillDirection = Enum.FillDirection.Vertical
+    layout.VerticalAlignment = Enum.VerticalAlignment.Bottom -- empilha de baixo pra cima
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    layout.Padding = UDim.new(0, 8)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = notifyList
+
+    return notifyRoot, notifyList
+end
+
+-- [PATCH] — Notificações empilhadas + countdown (default 2s)
 function SpliceUI.Notify(message: string, duration: number?)
-    duration = duration or 2.0
+    duration = tonumber(duration) or 2.0
+    local _, list = getNotifyRoot()
 
-    local sg = PLAYER_GUI:FindFirstChild("SpliceUI_Notify") or New("ScreenGui", {
-        Name = "SpliceUI_Notify",
-        ResetOnSpawn = false,
-        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-        DisplayOrder = 50,
-    })
-    sg.Parent = PLAYER_GUI
+    -- cada toast usa LayoutOrder negativo para ficar acima (mais novo no topo do stack)
+    local order = -os.clock()
 
-    local toast = New("Frame", {
-        BackgroundColor3 = ActiveTheme.Colors.glass,
-        BackgroundTransparency = ActiveTheme.Transparency.glass,
-        Size = UDim2.fromOffset(320, 48),
-        AnchorPoint = Vector2.new(1,1),
-        Position = UDim2.new(1,-16,1,-16),
-        BorderSizePixel = 0,
-        ZIndex = 100,
-    })
-    New("UICorner", {CornerRadius = UDim.new(0, 12)}).Parent = toast
-    New("UIStroke", {Color = ActiveTheme.Colors.stroke, Transparency = 0.4}).Parent = toast
+    local toast = Instance.new("Frame")
+    toast.Name = "Toast"
+    toast.Size = UDim2.fromOffset(360, 56)
+    toast.BackgroundColor3 = ActiveTheme.Colors.glass
+    toast.BackgroundTransparency = ActiveTheme.Transparency.glass
+    toast.BorderSizePixel = 0
+    toast.LayoutOrder = order
+    toast.Parent = list
 
-    local label = New("TextLabel", {
-        BackgroundTransparency = 1,
-        Size = UDim2.fromScale(1,1),
-        Font = ActiveTheme.Font,
-        Text = message,
-        TextColor3 = ActiveTheme.Colors.text,
-        TextWrapped = true,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextYAlignment = Enum.TextYAlignment.Center,
-        TextSize = 16,
-        Position = UDim2.fromOffset(14,0),
-    })
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = toast
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = ActiveTheme.Colors.stroke
+    stroke.Transparency = 0.4
+    stroke.Parent = toast
+
+    -- texto
+    local label = Instance.new("TextLabel")
+    label.BackgroundTransparency = 1
+    label.Size = UDim2.new(1, -74, 1, 0)
+    label.Position = UDim2.fromOffset(14, 0)
+    label.Font = ActiveTheme.Font
+    label.Text = message
+    label.TextColor3 = ActiveTheme.Colors.text
+    label.TextWrapped = true
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.TextYAlignment = Enum.TextYAlignment.Center
+    label.TextSize = 16
     label.Parent = toast
 
-    toast.Parent = sg
+    -- contador (direita)
+    local counter = Instance.new("TextLabel")
+    counter.BackgroundTransparency = 1
+    counter.Size = UDim2.fromOffset(60, 20)
+    counter.Position = UDim2.new(1, -62, 0, 8)
+    counter.Font = ActiveTheme.Font
+    counter.TextColor3 = ActiveTheme.Colors.subtext
+    counter.TextSize = 14
+    counter.TextXAlignment = Enum.TextXAlignment.Right
+    counter.Text = string.format("%.1fs", duration)
+    counter.Parent = toast
 
+    -- barra de progresso (inferior)
+    local bar = Instance.new("Frame")
+    bar.BackgroundColor3 = ActiveTheme.Colors.accent
+    bar.BackgroundTransparency = 0.1
+    bar.BorderSizePixel = 0
+    bar.AnchorPoint = Vector2.new(0,1)
+    bar.Position = UDim2.new(0, 14, 1, -8)
+    bar.Size = UDim2.new(1, -28, 0, 4)
+    bar.Parent = toast
+    local barCorner = Instance.new("UICorner")
+    barCorner.CornerRadius = UDim.new(0, 2)
+    barCorner.Parent = bar
+
+    -- animação de entrada
     toast.BackgroundTransparency = 1
     label.TextTransparency = 1
-    PlayTween(toast, TweenInfo.new(0.18), {BackgroundTransparency = ActiveTheme.Transparency.glass})
-    PlayTween(label, TweenInfo.new(0.18), {TextTransparency = 0})
+    counter.TextTransparency = 1
+    bar.Size = UDim2.new(0, 0, 0, 4)
 
-    task.delay(duration, function()
-        PlayTween(toast, TweenInfo.new(0.18), {BackgroundTransparency = 1})
-        PlayTween(label, TweenInfo.new(0.18), {TextTransparency = 1}).Completed:Wait()
-        toast:Destroy()
+    TweenService:Create(toast, TweenInfo.new(0.18), {BackgroundTransparency = ActiveTheme.Transparency.glass}):Play()
+    TweenService:Create(label, TweenInfo.new(0.18), {TextTransparency = 0}):Play()
+    TweenService:Create(counter, TweenInfo.new(0.18), {TextTransparency = 0}):Play()
+    TweenService:Create(bar, TweenInfo.new(duration), {Size = UDim2.new(1, -28, 0, 4)}):Play()
+
+    -- countdown (Heartbeat)
+    local start = os.clock()
+    local alive = true
+    local hbConn
+    hbConn = RunService.Heartbeat:Connect(function()
+        if not alive then return end
+        local elapsed = os.clock() - start
+        local left = math.max(0, duration - elapsed)
+        counter.Text = string.format("%.1fs", left)
+        if left <= 0 then
+            alive = false
+            if hbConn then hbConn:Disconnect() end
+
+            -- animação de saída
+            local t1 = TweenService:Create(toast, TweenInfo.new(0.18), {BackgroundTransparency = 1})
+            local t2 = TweenService:Create(label, TweenInfo.new(0.18), {TextTransparency = 1})
+            local t3 = TweenService:Create(counter, TweenInfo.new(0.18), {TextTransparency = 1})
+            t1:Play(); t2:Play(); t3:Play()
+            t1.Completed:Connect(function()
+                toast:Destroy()
+            end)
+        end
     end)
+
+    return toast
 end
+
 
 -- Helpers de criação rápida -------------------------------------------------
 function SpliceUI.CreateWindow(opts)
