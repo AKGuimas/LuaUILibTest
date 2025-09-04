@@ -216,7 +216,29 @@ function Window.new(opts)
     local minimizeBtn = New("TextButton", {AutoButtonColor=false, Size=UDim2.fromOffset(28,28), Position=UDim2.new(1,-72,0.5,0), AnchorPoint=Vector2.new(0.5,0.5), BackgroundColor3=ActiveTheme.Colors.panel, BackgroundTransparency=ActiveTheme.Transparency.panel, Text="–", TextColor3=ActiveTheme.Colors.text, Font=ActiveTheme.Font, TextSize=16, ZIndex=5});
     New("UICorner", {CornerRadius=UDim.new(0,10)}).Parent=minimizeBtn; New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.6}).Parent=minimizeBtn; minimizeBtn.Parent=topbar
 
-    local content = New("Frame", {Name="Content", BackgroundTransparency=1, Size=UDim2.new(1,-24,1,-58), Position=UDim2.fromOffset(12,46), ZIndex=2})
+-- antes:
+-- local content = New("Frame", { Name="Content", ... })
+
+-- depois:
+local content = Instance.new("ScrollingFrame")
+content.Name = "Content"
+content.BackgroundTransparency = 1
+content.Size = UDim2.new(1, -24, 1, -58)
+content.Position = UDim2.fromOffset(12, 46)
+content.ScrollBarImageTransparency = 0.6
+content.BorderSizePixel = 0
+content.ScrollingDirection = Enum.ScrollingDirection.Y
+content.AutomaticCanvasSize = Enum.AutomaticCanvasSize.Y
+content.CanvasSize = UDim2.new()
+content.ClipsDescendants = true
+content.ZIndex = 2
+content.Parent = bg
+
+local contentLayout = Instance.new("UIListLayout")
+contentLayout.Padding = UDim.new(0, 10)
+contentLayout.FillDirection = Enum.FillDirection.Vertical
+contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+contentLayout.Parent = content
     content.Parent = bg; New("UIListLayout", {Padding=UDim.new(0,10), FillDirection=Enum.FillDirection.Vertical, SortOrder=Enum.SortOrder.LayoutOrder}).Parent=content
 
     MakeDraggable(container, topbar)
@@ -253,7 +275,21 @@ end
 function SpliceUI.Tabs(parent: Instance, tabNames: {string})
     local row = New("Frame", {BackgroundTransparency=1, Size=UDim2.new(1,0,0,40)}); row.Parent = parent
     local rowList = New("UIListLayout", {FillDirection=Enum.FillDirection.Horizontal, Padding=UDim.new(0,8), SortOrder=Enum.SortOrder.LayoutOrder}); rowList.Parent=row
-    local pages = New("Frame", {BackgroundTransparency=1, Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y, Name="Pages"}); pages.Parent = parent
+-- antes:
+-- local pages = New("Frame", { BackgroundTransparency=1, Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y, Name="Pages" }); pages.Parent = parent
+
+-- depois:
+local pages = Instance.new("ScrollingFrame")
+pages.Name = "Pages"
+pages.BackgroundTransparency = 1
+pages.BorderSizePixel = 0
+pages.Size = UDim2.new(1, 0, 0, 0)
+pages.AutomaticSize = Enum.AutomaticSize.Y
+pages.ScrollingDirection = Enum.ScrollingDirection.Y
+pages.AutomaticCanvasSize = Enum.AutomaticCanvasSize.Y
+pages.CanvasSize = UDim2.new()
+pages.ScrollBarImageTransparency = 0.6
+pages.Parent = parent
 
     local tabPages: {[string]: Frame} = {}
     local tabs: {[string]: TextButton} = {}
@@ -440,14 +476,44 @@ end
 
 -- Notificações (stack, 2s padrão, contador)
 local notifyRoot: ScreenGui?; local notifyList: Frame?
+-- Notificações (stack, 2s padrão, contador)
+local notifyRoot: ScreenGui?; local notifyList: Frame?
 local function getNotifyRoot()
     if notifyRoot and notifyRoot.Parent then return notifyRoot, notifyList end
-    notifyRoot = Instance.new("ScreenGui"); notifyRoot.Name="SpliceUI_Notify"; notifyRoot.ResetOnSpawn=false; notifyRoot.ZIndexBehavior=Enum.ZIndexBehavior.Sibling; notifyRoot.DisplayOrder=50
-    local parent = resolveParent()
-    notifyList = Instance.new("Frame"); notifyList.Name="List"; notifyList.AnchorPoint=Vector2.new(1,1); notifyList.Position=UDim2.new(1,-16,1,-16); notifyList.Size=UDim2.fromOffset(360,0); notifyList.BackgroundTransparency=1; notifyList.AutomaticSize=Enum.AutomaticSize.Y; notifyList.Parent=notifyRoot
-    local layout = Instance.new("UIListLayout"); layout.FillDirection=Enum.FillDirection.Vertical; layout.VerticalAlignment=Enum.VerticalAlignment.Bottom; layout.HorizontalAlignment=Enum.HorizontalAlignment.Right; layout.Padding=UDim.new(0,8); layout.SortOrder=Enum.SortOrder.LayoutOrder; layout.Parent=notifyList
+
+    notifyRoot = Instance.new("ScreenGui")
+    notifyRoot.Name = "SpliceUI_Notify"
+    notifyRoot.ResetOnSpawn = false
+    notifyRoot.IgnoreGuiInset = true
+    notifyRoot.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    notifyRoot.DisplayOrder = 9999  -- bem acima da janela
+    notifyRoot.Parent = resolveParent()  -- <<< usa o mesmo container universal
+
+    notifyList = Instance.new("Frame")
+    notifyList.Name = "List"
+    notifyList.AnchorPoint = Vector2.new(1,1)
+    notifyList.Position = UDim2.new(1, -16, 1, -16)
+    notifyList.Size = UDim2.fromOffset(360, 0)
+    notifyList.BackgroundTransparency = 1
+    notifyList.AutomaticSize = Enum.AutomaticSize.Y
+    notifyList.Parent = notifyRoot
+
+    local layout = Instance.new("UIListLayout")
+    layout.FillDirection = Enum.FillDirection.Vertical
+    layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    layout.Padding = UDim.new(0, 8)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = notifyList
+
     return notifyRoot, notifyList
 end
+
+function SpliceUI.Notify(message: string, duration: number?)
+    duration = tonumber(duration) or 2.0
+    local _, list = getNotifyRoot()
+    ...
+
 function SpliceUI.Notify(message: string, duration: number?)
     duration = tonumber(duration) or 2.0
     local _, list = getNotifyRoot()
