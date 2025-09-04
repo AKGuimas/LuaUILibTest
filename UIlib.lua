@@ -108,16 +108,17 @@ local function AddShadow(parent: GuiObject, transparency: number?)
         BorderSizePixel = 0,
         Size = UDim2.fromScale(1,1),
         Position = UDim2.fromOffset(0,0),
-        ZIndex = (parent.ZIndex or 1) - 1,
+        ZIndex = math.max(1, (parent.ZIndex or 2) - 1),
     })
-    local corner = New("UICorner", {CornerRadius = UDim.new(0, ActiveTheme.Corner)})
-    corner.Parent = shadow
+
     shadow.Parent = parent
-    shadow:ClearAllChildren() -- só manter o corner
-    corner.Parent = shadow
-    shadow.SendToBack = true
+
+    -- Cantos arredondados (não destruímos mais)
+    New("UICorner", {CornerRadius = UDim.new(0, ActiveTheme.Corner)}).Parent = shadow
+
     return shadow
 end
+
 
 -- Utility: stroke + cantos
 local function StyleGlass(frame: Frame)
