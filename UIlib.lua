@@ -1,6 +1,6 @@
 --!strict
--- UIlib.lua (Kavo‑compatible, universal, estilo splice.lol)
--- 
+-- UIlib.lua (Kavo-compatible, universal, estilo splice.lol)
+--
 -- ✅ Como usar (igual Kavo):
 -- local Library = loadstring(game:HttpGet("<raw-url>/UIlib.lua"))()
 -- local Window  = Library.CreateLib("Meu Jogo", "DarkTheme")
@@ -12,8 +12,8 @@
 -- Section:NewDropdown("Perfil", "", {"Padrão","Rápido"}, function(v) print(v) end)
 -- Section:NewTextBox("Comando", "Digite...", function(t) print(t) end)
 -- Library.Notify("Olá!", 2)
--- 
--- ℹ️ Opcional universal: Library.SetParentGui(screenGui) para montar em um ScreenGui próprio.
+--
+-- ℹ️ Opcional universal: Library.SetParentGui(screenGui)
 
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -123,20 +123,11 @@ local function MakeDraggable(frame: Frame, dragHandle: GuiObject?)
     end)
 end
 
--- Root
--- [NOVO] Resolve o container universal no estilo das UI libs:
--- Prioridade:
--- 1) ParentOverride (se você chamou Library.SetParentGui)
--- 2) gethui() / get_hidden_gui() (executores)
--- 3) CoreGui (protegendo com syn.protect_gui, se existir)
--- 4) PlayerGui (fallback seguro no Studio/jogo normal)
+-- Root (universal)
 local function resolveParent()
-    -- 1) Parent explícito do usuário
     if ParentOverride and ParentOverride.Parent then
         return ParentOverride
     end
-
-    -- 2) gethui / get_hidden_gui (se o executor expõe)
     local ok, hui = pcall(function()
         if typeof(gethui) == "function" then return gethui() end
     end)
@@ -149,18 +140,13 @@ local function resolveParent()
     if ok2 and typeof(hidden) == "Instance" then
         return hidden
     end
-
-    -- 3) CoreGui (com proteção se disponível)
     local coreGui = game:GetService("CoreGui")
     if coreGui then
         return coreGui
     end
-
-    -- 4) Fallback
     return PLAYER_GUI
 end
 
--- Substitua sua função createRoot por esta versão:
 local function createRoot(name: string)
     local sg = Instance.new("ScreenGui")
     sg.Name = name
@@ -173,10 +159,7 @@ local function createRoot(name: string)
     scale.Scale = 1
     scale.Parent = sg
 
-    -- Resolve container universal
     local parent = resolveParent()
-
-    -- Se for CoreGui e houver syn.protect_gui, proteja antes de parentear
     if parent == game:GetService("CoreGui") then
         pcall(function()
             if typeof(syn) == "table" and typeof(syn.protect_gui) == "function" then
@@ -184,17 +167,15 @@ local function createRoot(name: string)
             end
         end)
     end
-
     sg.Parent = parent
     return sg, scale
 end
-
 
 -- Theme API
 function SpliceUI.setTheme(themeName: string) local t = Themes[themeName]; if t then ActiveTheme=t end end
 function SpliceUI.setAccent(color: Color3) ActiveTheme.Colors.accent = color; ActiveTheme.Colors.accent2 = color:Lerp(Color3.new(1,1,1),0.4) end
 
--- State API simples
+-- State API
 local State: {[string]: any} = {}
 function SpliceUI.SetState(key: string, value: any) State[key]=value end
 function SpliceUI.GetState(key: string, default: any) local v=State[key]; if v==nil then return default end; return v end
@@ -203,42 +184,68 @@ function SpliceUI.GetState(key: string, default: any) local v=State[key]; if v==
 local Window = {}; Window.__index = Window
 function Window.new(opts)
     local root, scale = createRoot("SpliceUI")
-    local container = New("Frame", {Name="Window", Size=opts.size or UDim2.fromOffset(560,420), Position=opts.position or UDim2.fromScale(0.5,0.5), AnchorPoint=Vector2.new(0.5,0.5), BackgroundTransparency=1}); container.Parent = root
-    local panel = New("Frame", {Name="Panel", Size=UDim2.fromScale(1,1), BackgroundTransparency=1}); panel.Parent = container
-    local bg = New("Frame", {Name="Glass", Size=UDim2.fromScale(1,1), BorderSizePixel=0, ZIndex=2}); StyleGlass(bg); bg.Parent=panel; AddShadow(bg, ActiveTheme.ShadowTransparency)
+    local container = New("Frame", {
+        Name="Window",
+        Size=opts.size or UDim2.fromOffset(560,420),
+        Position=opts.position or UDim2.fromScale(0.5,0.5),
+        AnchorPoint=Vector2.new(0.5,0.5),
+        BackgroundTransparency=1
+    })
+    container.Parent = root
 
-    local topbar = New("Frame", {Name="Topbar", BackgroundColor3=ActiveTheme.Colors.panel, BackgroundTransparency=ActiveTheme.Transparency.panel, Size=UDim2.new(1,0,0,42), ZIndex=3});
-    New("UICorner", {CornerRadius=UDim.new(0, ActiveTheme.Corner)}).Parent = topbar; New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.55}).Parent=topbar; topbar.Parent = bg
-    local title = New("TextLabel", {BackgroundTransparency=1, Size=UDim2.new(1,-120,1,0), Position=UDim2.fromOffset(16,0), Font=ActiveTheme.Font, Text=opts.title or "splice.lol", TextColor3=ActiveTheme.Colors.text, TextXAlignment=Enum.TextXAlignment.Left, TextSize=18, ZIndex=4}); title.Parent=topbar
+    local panel = New("Frame", {Name="Panel", Size=UDim2.fromScale(1,1), BackgroundTransparency=1})
+    panel.Parent = container
 
-    local closeBtn = New("TextButton", {AutoButtonColor=false, Size=UDim2.fromOffset(28,28), Position=UDim2.new(1,-36,0.5,0), AnchorPoint=Vector2.new(0.5,0.5), BackgroundColor3=ActiveTheme.Colors.accent, BackgroundTransparency=0.05, Text="✕", TextColor3=Color3.new(1,1,1), Font=ActiveTheme.Font, TextSize=16, ZIndex=5});
-    New("UICorner", {CornerRadius=UDim.new(0,10)}).Parent=closeBtn; New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.6}).Parent=closeBtn; closeBtn.Parent=topbar
-    local minimizeBtn = New("TextButton", {AutoButtonColor=false, Size=UDim2.fromOffset(28,28), Position=UDim2.new(1,-72,0.5,0), AnchorPoint=Vector2.new(0.5,0.5), BackgroundColor3=ActiveTheme.Colors.panel, BackgroundTransparency=ActiveTheme.Transparency.panel, Text="–", TextColor3=ActiveTheme.Colors.text, Font=ActiveTheme.Font, TextSize=16, ZIndex=5});
-    New("UICorner", {CornerRadius=UDim.new(0,10)}).Parent=minimizeBtn; New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.6}).Parent=minimizeBtn; minimizeBtn.Parent=topbar
+    local bg = New("Frame", {Name="Glass", Size=UDim2.fromScale(1,1), BorderSizePixel=0, ZIndex=2})
+    StyleGlass(bg); bg.Parent=panel; AddShadow(bg, ActiveTheme.ShadowTransparency)
 
--- antes:
--- local content = New("Frame", { Name="Content", ... })
+    local topbar = New("Frame", {Name="Topbar", BackgroundColor3=ActiveTheme.Colors.panel,
+        BackgroundTransparency=ActiveTheme.Transparency.panel, Size=UDim2.new(1,0,0,42), ZIndex=3})
+    New("UICorner", {CornerRadius=UDim.new(0, ActiveTheme.Corner)}).Parent = topbar
+    New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.55}).Parent=topbar
+    topbar.Parent = bg
 
--- depois:
-local content = Instance.new("ScrollingFrame")
-content.Name = "Content"
-content.BackgroundTransparency = 1
-content.Size = UDim2.new(1, -24, 1, -58)
-content.Position = UDim2.fromOffset(12, 46)
-content.ScrollBarImageTransparency = 0.6
-content.BorderSizePixel = 0
-content.ScrollingDirection = Enum.ScrollingDirection.Y
-content.AutomaticCanvasSize = Enum.AutomaticCanvasSize.Y
-content.CanvasSize = UDim2.new()
-content.ClipsDescendants = true
-content.ZIndex = 2
-content.Parent = bg
+    local title = New("TextLabel", {BackgroundTransparency=1, Size=UDim2.new(1,-120,1,0),
+        Position=UDim2.fromOffset(16,0), Font=ActiveTheme.Font, Text=opts.title or "splice.lol",
+        TextColor3=ActiveTheme.Colors.text, TextXAlignment=Enum.TextXAlignment.Left, TextSize=18, ZIndex=4})
+    title.Parent=topbar
 
-local contentLayout = Instance.new("UIListLayout")
-contentLayout.Padding = UDim.new(0, 10)
-contentLayout.FillDirection = Enum.FillDirection.Vertical
-contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
-contentLayout.Parent = content
+    local closeBtn = New("TextButton", {AutoButtonColor=false, Size=UDim2.fromOffset(28,28),
+        Position=UDim2.new(1,-36,0.5,0), AnchorPoint=Vector2.new(0.5,0.5),
+        BackgroundColor3=ActiveTheme.Colors.accent, BackgroundTransparency=0.05,
+        Text="✕", TextColor3=Color3.new(1,1,1), Font=ActiveTheme.Font, TextSize=16, ZIndex=5})
+    New("UICorner", {CornerRadius=UDim.new(0,10)}).Parent=closeBtn
+    New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.6}).Parent=closeBtn
+    closeBtn.Parent=topbar
+
+    local minimizeBtn = New("TextButton", {AutoButtonColor=false, Size=UDim2.fromOffset(28,28),
+        Position=UDim2.new(1,-72,0.5,0), AnchorPoint=Vector2.new(0.5,0.5),
+        BackgroundColor3=ActiveTheme.Colors.panel, BackgroundTransparency=ActiveTheme.Transparency.panel,
+        Text="–", TextColor3=ActiveTheme.Colors.text, Font=ActiveTheme.Font, TextSize=16, ZIndex=5})
+    New("UICorner", {CornerRadius=UDim.new(0,10)}).Parent=minimizeBtn
+    New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.6}).Parent=minimizeBtn
+    minimizeBtn.Parent=topbar
+
+    -- Content com scroll
+    local content = Instance.new("ScrollingFrame")
+    content.Name = "Content"
+    content.BackgroundTransparency = 1
+    content.Size = UDim2.new(1, -24, 1, -58)
+    content.Position = UDim2.fromOffset(12, 46)
+    content.ScrollBarImageTransparency = 0.6
+    content.BorderSizePixel = 0
+    content.ScrollingDirection = Enum.ScrollingDirection.Y
+    content.AutomaticCanvasSize = Enum.AutomaticCanvasSize.Y
+    content.CanvasSize = UDim2.new()
+    content.ClipsDescendants = true
+    content.ZIndex = 2
+    content.Parent = bg
+
+    local contentLayout = Instance.new("UIListLayout")
+    contentLayout.Padding = UDim.new(0, 10)
+    contentLayout.FillDirection = Enum.FillDirection.Vertical
+    contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    contentLayout.Parent = content
 
     MakeDraggable(container, topbar)
     local minimized=false
@@ -254,11 +261,18 @@ contentLayout.Parent = content
     end)
     closeBtn.MouseButton1Click:Connect(function() root:Destroy() end)
 
-    local self = setmetatable({Gui=root, Window=container, Panel=bg, Topbar=topbar, Content=content, Tabs=nil, _scale=scale, ActiveTab=nil, Key=opts.key or ("win_"..HttpService:GenerateGUID(false))}, Window)
+    local self = setmetatable({
+        Gui=root, Window=container, Panel=bg, Topbar=topbar, Content=content,
+        Tabs=nil, _scale=scale, ActiveTab=nil, Key=opts.key or ("win_"..HttpService:GenerateGUID(false))
+    }, Window)
     if opts.tabs and #opts.tabs>0 then self.Tabs = SpliceUI.Tabs(content, opts.tabs); self.ActiveTab = opts.tabs[1] end
     return self
 end
-function Window:SetScale(scale: number) if self._scale then self._scale.Scale = math.clamp(scale,0.7,1.5) end end
+
+function Window:SetScale(scale: number)
+    if self._scale then self._scale.Scale = math.clamp(scale,0.7,1.5) end
+end
+
 function Window:AddSection(titleText: string, tabName: string?)
     local dest: Instance = self.Content
     local target = tabName or self.ActiveTab
@@ -270,25 +284,22 @@ function Window:AddSection(titleText: string, tabName: string?)
     section.Parent = dest; return body
 end
 
--- Tabs dinâmicas
+-- Tabs dinâmicas (com área de páginas rolável)
 function SpliceUI.Tabs(parent: Instance, tabNames: {string})
     local row = New("Frame", {BackgroundTransparency=1, Size=UDim2.new(1,0,0,40)}); row.Parent = parent
     local rowList = New("UIListLayout", {FillDirection=Enum.FillDirection.Horizontal, Padding=UDim.new(0,8), SortOrder=Enum.SortOrder.LayoutOrder}); rowList.Parent=row
--- antes:
--- local pages = New("Frame", { BackgroundTransparency=1, Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y, Name="Pages" }); pages.Parent = parent
 
--- depois:
-local pages = Instance.new("ScrollingFrame")
-pages.Name = "Pages"
-pages.BackgroundTransparency = 1
-pages.BorderSizePixel = 0
-pages.Size = UDim2.new(1, 0, 0, 0)
-pages.AutomaticSize = Enum.AutomaticSize.Y
-pages.ScrollingDirection = Enum.ScrollingDirection.Y
-pages.AutomaticCanvasSize = Enum.AutomaticCanvasSize.Y
-pages.CanvasSize = UDim2.new()
-pages.ScrollBarImageTransparency = 0.6
-pages.Parent = parent
+    local pages = Instance.new("ScrollingFrame")
+    pages.Name = "Pages"
+    pages.BackgroundTransparency = 1
+    pages.BorderSizePixel = 0
+    pages.Size = UDim2.new(1, 0, 0, 0)
+    pages.AutomaticSize = Enum.AutomaticSize.Y
+    pages.ScrollingDirection = Enum.ScrollingDirection.Y
+    pages.AutomaticCanvasSize = Enum.AutomaticCanvasSize.Y
+    pages.CanvasSize = UDim2.new()
+    pages.ScrollBarImageTransparency = 0.6
+    pages.Parent = parent
 
     local tabPages: {[string]: Frame} = {}
     local tabs: {[string]: TextButton} = {}
@@ -375,7 +386,7 @@ function SpliceUI.Toggle(parent: Instance, opts: {text: string, default: boolean
         PlayTween(knob, TweenInfo.new(0.15), {
             Position = value and UDim2.fromOffset(24,3) or UDim2.fromOffset(3,3)
         })
-        changed:Fire(value) -- <<< dispara aqui
+        changed:Fire(value)
     end
 
     btn.MouseButton1Click:Connect(function() set(not value) end)
@@ -389,19 +400,26 @@ function SpliceUI.Toggle(parent: Instance, opts: {text: string, default: boolean
     }
 end
 
-
 function SpliceUI.Slider(parent: Instance, opts: {text: string, min: number, max: number, step: number?, default: number?, key: string?})
     local id = opts.key or ("slider_"..HttpService:GenerateGUID(false))
     local min = opts.min or 0; local max = opts.max or 100; local step = opts.step or 1
     local value = SpliceUI.GetState(id, opts.default or min)
     local frame = New("Frame", {BackgroundTransparency=1, Size=UDim2.new(1,0,0,46)})
     local changed = Instance.new("BindableEvent")
+
     local top = New("Frame", {BackgroundTransparency=1, Size=UDim2.new(1,0,0,22)}); top.Parent=frame
     local label = New("TextLabel", {BackgroundTransparency=1, Size=UDim2.new(1,-60,1,0), Font=ActiveTheme.Font, Text=opts.text or "Slider", TextColor3=ActiveTheme.Colors.text, TextXAlignment=Enum.TextXAlignment.Left, TextSize=16}); label.Parent=top
     local valLabel = New("TextLabel", {BackgroundTransparency=1, Size=UDim2.new(0,60,1,0), Position=UDim2.new(1,-60,0,0), Font=ActiveTheme.Font, Text=tostring(value), TextColor3=ActiveTheme.Colors.subtext, TextXAlignment=Enum.TextXAlignment.Right, TextSize=14}); valLabel.Parent=top
-    local bar = New("Frame", {BackgroundColor3=ActiveTheme.Colors.panel, BackgroundTransparency=ActiveTheme.Transparency.panel, Size=UDim2.new(1,0,0,10), Position=UDim2.new(0,0,0,28), BorderSizePixel=0}); New("UICorner", {CornerRadius=UDim.new(0,6)}).Parent=bar; New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.5}).Parent=bar; bar.Parent=frame
-    local fill = New("Frame", {BackgroundColor3=ActiveTheme.Colors.accent, BackgroundTransparency=0.05, Size=UDim2.new((value-min)/(max-min),0,1,0), BorderSizePixel=0}); New("UICorner", {CornerRadius=UDim.new(0,6)}).Parent=fill; fill.Parent=bar
-    local knob = New("Frame", {BackgroundColor3=Color3.new(1,1,1), Size=UDim2.fromOffset(14,14), AnchorPoint=Vector2.new(0.5,0.5), Position=UDim2.new((value-min)/(max-min),0,0.5,0), BorderSizePixel=0}); New("UICorner", {CornerRadius=UDim.new(0,7)}).Parent=knob; knob.Parent=bar
+
+    local bar = New("Frame", {BackgroundColor3=ActiveTheme.Colors.panel, BackgroundTransparency=ActiveTheme.Transparency.panel, Size=UDim2.new(1,0,0,10), Position=UDim2.new(0,0,0,28), BorderSizePixel=0})
+    New("UICorner", {CornerRadius=UDim.new(0,6)}).Parent=bar; New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.5}).Parent=bar; bar.Parent=frame
+
+    local fill = New("Frame", {BackgroundColor3=ActiveTheme.Colors.accent, BackgroundTransparency=0.05, Size=UDim2.new((value-min)/(max-min),0,1,0), BorderSizePixel=0})
+    New("UICorner", {CornerRadius=UDim.new(0,6)}).Parent=fill; fill.Parent=bar
+
+    local knob = New("Frame", {BackgroundColor3=Color3.new(1,1,1), Size=UDim2.fromOffset(14,14), AnchorPoint=Vector2.new(0.5,0.5), Position=UDim2.new((value-min)/(max-min),0,0.5,0), BorderSizePixel=0})
+    New("UICorner", {CornerRadius=UDim.new(0,7)}).Parent=knob; knob.Parent=bar
+
     local sliding=false
     local function set(newVal: number)
         newVal = math.clamp(newVal,min,max); if step>0 then newVal = math.round(newVal/step)*step end
@@ -414,41 +432,40 @@ function SpliceUI.Slider(parent: Instance, opts: {text: string, min: number, max
     UserInputService.InputChanged:Connect(function(i) if sliding and i.UserInputType==Enum.UserInputType.MouseMovement then local rel=(i.Position.X-bar.AbsolutePosition.X)/bar.AbsoluteSize.X; set(min+rel*(max-min)) end end)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then sliding=false end end)
     frame.Parent=parent
-return {
-    Instance = frame,
-    Get = function() return value end,
-    Set = set,
-    Changed = changed.Event  -- <<< aqui é o que os usuários vão conectar
-}
+
+    return { Instance = frame, Get = function() return value end, Set = set, Changed = changed.Event }
 end
 
 function SpliceUI.Dropdown(parent: Instance, opts: {text: string, items: {string}, default: string?, key: string?})
     local id = opts.key or ("dropdown_"..HttpService:GenerateGUID(false))
     local value = SpliceUI.GetState(id, opts.default or (opts.items[1] or ""))
     local frame = New("Frame", {BackgroundTransparency=1, Size=UDim2.new(1,0,0,36)})
-    local label = New("TextLabel", {BackgroundTransparency=1, Size=UDim2.new(0.35,0,1,0), Font=ActiveTheme.Font, Text=opts.text or "Dropdown", TextColor3=ActiveTheme.Colors.text, TextXAlignment=Enum.TextXAlignment.Left, TextSize=16}); label.Parent=frame
-    local box = New("TextButton", {AutoButtonColor=false, BackgroundColor3=ActiveTheme.Colors.panel, BackgroundTransparency=ActiveTheme.Transparency.panel, Size=UDim2.new(0.65,0,1,0), Position=UDim2.new(0.35,8,0,0), Text=value, Font=ActiveTheme.Font, TextSize=16, TextColor3=ActiveTheme.Colors.text});
-    New("UICorner", {CornerRadius=UDim.new(0,ActiveTheme.Corner)}).Parent=box; New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.5}).Parent=box; box.Parent=frame
 
-    -- Lista sobreposta ao ScreenGui (sem clip)
-    -- Lista sobreposta no mesmo container universal da janela
-local overlayParent = resolveParent()
-local listFrame = New("Frame", {
-    BackgroundColor3 = ActiveTheme.Colors.glass,
-    BackgroundTransparency = ActiveTheme.Transparency.glass,
-    Size = UDim2.fromOffset(0,0),
-    BorderSizePixel = 0,
-    Visible = false,
-    ZIndex = 300,  -- acima da janela e bem abaixo das toasts
-})
-New("UICorner", {CornerRadius = UDim.new(0, ActiveTheme.Corner)}).Parent = listFrame
-New("UIStroke", {Color = ActiveTheme.Colors.stroke, Transparency = 0.4}).Parent = listFrame
-listFrame.Parent = overlayParent
+    local label = New("TextLabel", {BackgroundTransparency=1, Size=UDim2.new(0.35,0,1,0), Font=ActiveTheme.Font, Text=opts.text or "Dropdown", TextColor3=ActiveTheme.Colors.text, TextXAlignment=Enum.TextXAlignment.Left, TextSize=16})
+    label.Parent=frame
+
+    local box = New("TextButton", {AutoButtonColor=false, BackgroundColor3=ActiveTheme.Colors.panel, BackgroundTransparency=ActiveTheme.Transparency.panel, Size=UDim2.new(0.65,0,1,0), Position=UDim2.new(0.35,8,0,0), Text=value, Font=ActiveTheme.Font, TextSize=16, TextColor3=ActiveTheme.Colors.text})
+    New("UICorner", {CornerRadius=UDim.new(0,ActiveTheme.Corner)}).Parent=box
+    New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.5}).Parent=box
+    box.Parent=frame
+
+    -- overlay no mesmo container universal
+    local listFrame = New("Frame", {
+        BackgroundColor3 = ActiveTheme.Colors.glass,
+        BackgroundTransparency = ActiveTheme.Transparency.glass,
+        Size = UDim2.fromOffset(0,0),
+        BorderSizePixel = 0,
+        Visible = false,
+        ZIndex = 300,
+    })
+    New("UICorner", {CornerRadius = UDim.new(0, ActiveTheme.Corner)}).Parent = listFrame
+    New("UIStroke", {Color = ActiveTheme.Colors.stroke, Transparency = 0.4}).Parent = listFrame
+    listFrame.Parent = resolveParent()
 
     local uilist = New("UIListLayout", {Padding=UDim.new(0,4)}); uilist.Parent=listFrame
 
     local function positionList()
-        local absPos = box.AbsolutePosition; local absSize = box.AbsoluteSize
+        local absPos, absSize = box.AbsolutePosition, box.AbsoluteSize
         listFrame.Position = UDim2.fromOffset(absPos.X, absPos.Y + absSize.Y + 4)
         listFrame.Size = UDim2.fromOffset(absSize.X, listFrame.Size.Y.Offset)
     end
@@ -457,42 +474,32 @@ listFrame.Parent = overlayParent
         PlayTween(listFrame, TweenInfo.new(0.12), {Size = UDim2.fromOffset(box.AbsoluteSize.X, #opts.items*30 + 10)})
     end
     local function close()
-        PlayTween(listFrame, TweenInfo.new(0.12), {Size = UDim2.fromOffset(box.AbsoluteSize.X, 0)}).Completed:Wait(); listFrame.Visible=false
+        PlayTween(listFrame, TweenInfo.new(0.12), {Size = UDim2.fromOffset(box.AbsoluteSize.X, 0)}).Completed:Wait()
+        listFrame.Visible=false
     end
 
     box.MouseButton1Click:Connect(function() if listFrame.Visible then close() else open() end end)
     RunService.RenderStepped:Connect(function() if listFrame.Visible then positionList() end end)
-    -- fechar ao clicar fora
-UserInputService.InputBegan:Connect(function(input, gpe)
-    if gpe or not listFrame.Visible then return end
-    if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
 
-    local pos = input.Position
-    local a = listFrame.AbsolutePosition
-    local s = listFrame.AbsoluteSize
-    local insideList = (pos.X>=a.X and pos.X<=a.X+s.X and pos.Y>=a.Y and pos.Y<=a.Y+s.Y)
+    -- fechar ao clicar fora (apenas um handler)
+    UserInputService.InputBegan:Connect(function(input, gpe)
+        if gpe or not listFrame.Visible then return end
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+        local pos = input.Position
+        local a, s = listFrame.AbsolutePosition, listFrame.AbsoluteSize
+        local insideList = (pos.X>=a.X and pos.X<=a.X+s.X and pos.Y>=a.Y and pos.Y<=a.Y+s.Y)
+        local bA, bS = box.AbsolutePosition, box.AbsoluteSize
+        local insideBox = (pos.X>=bA.X and pos.X<=bA.X+bS.X and pos.Y>=bA.Y and pos.Y<=bA.Y+bS.Y)
+        if not insideList and not insideBox then close() end
+    end)
 
-    local bA = box.AbsolutePosition
-    local bS = box.AbsoluteSize
-    local insideBox = (pos.X>=bA.X and pos.X<=bA.X+bS.X and pos.Y>=bA.Y and pos.Y<=bA.Y+bS.Y)
-
-    if not insideList and not insideBox then
-        close()
+    local function set(v: string)
+        value=v; SpliceUI.SetState(id,value); box.Text=value; close()
     end
-end)
-
-    UserInputService.InputBegan:Connect(function(i,gpe) if gpe then return end; if listFrame.Visible and i.UserInputType==Enum.UserInputType.MouseButton1 then
-        local pos = i.Position; local a = listFrame.AbsolutePosition; local s = listFrame.AbsoluteSize
-        local inside = (pos.X>=a.X and pos.X<=a.X+s.X and pos.Y>=a.Y and pos.Y<=a.Y+s.Y)
-        local bA = box.AbsolutePosition; local bS = box.AbsoluteSize
-        local inBox = (pos.X>=bA.X and pos.X<=bA.X+bS.X and pos.Y>=bA.Y and pos.Y<=bA.Y+bS.Y)
-        if not inside and not inBox then close() end
-    end end)
-
-    local function set(v: string) value=v; SpliceUI.SetState(id,value); box.Text=value; close() end
     for _,item in ipairs(opts.items) do
-        local opt = New("TextButton", {AutoButtonColor=false, BackgroundColor3=ActiveTheme.Colors.panel, BackgroundTransparency=ActiveTheme.Transparency.panel, Size=UDim2.new(1,-8,0,26), Text=item, Font=ActiveTheme.Font, TextSize=14, TextColor3=ActiveTheme.Colors.text, ZIndex=201});
-        New("UICorner", {CornerRadius=UDim.new(0,10)}).Parent=opt; New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.6}).Parent=opt
+        local opt = New("TextButton", {AutoButtonColor=false, BackgroundColor3=ActiveTheme.Colors.panel, BackgroundTransparency=ActiveTheme.Transparency.panel, Size=UDim2.new(1,-8,0,26), Text=item, Font=ActiveTheme.Font, TextSize=14, TextColor3=ActiveTheme.Colors.text, ZIndex=301})
+        New("UICorner", {CornerRadius=UDim.new(0,10)}).Parent=opt
+        New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.6}).Parent=opt
         opt.MouseEnter:Connect(function() PlayTween(opt, TweenInfo.new(0.08), {BackgroundColor3=ActiveTheme.Colors.glass, BackgroundTransparency=ActiveTheme.Transparency.glass}) end)
         opt.MouseLeave:Connect(function() PlayTween(opt, TweenInfo.new(0.12), {BackgroundColor3=ActiveTheme.Colors.panel, BackgroundTransparency=ActiveTheme.Transparency.panel}) end)
         opt.MouseButton1Click:Connect(function() set(item) end)
@@ -528,7 +535,6 @@ function SpliceUI.Input(parent: Instance, opts: {placeholder: string?, key: stri
     New("UICorner", {CornerRadius = UDim.new(0, ActiveTheme.Corner)}).Parent = box
     New("UIStroke", {Color = ActiveTheme.Colors.stroke, Transparency = 0.5}).Parent = box
 
-    -- salva estado quando perde o foco
     box.FocusLost:Connect(function()
         SpliceUI.SetState(id, box.Text)
     end)
@@ -546,9 +552,6 @@ function SpliceUI.Input(parent: Instance, opts: {placeholder: string?, key: stri
     }
 end
 
-
--- Notificações (stack, 2s padrão, contador)
-local notifyRoot: ScreenGui?; local notifyList: Frame?
 -- Notificações (stack, 2s padrão, contador)
 local notifyRoot: ScreenGui?; local notifyList: Frame?
 local function getNotifyRoot()
@@ -559,8 +562,8 @@ local function getNotifyRoot()
     notifyRoot.ResetOnSpawn = false
     notifyRoot.IgnoreGuiInset = true
     notifyRoot.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    notifyRoot.DisplayOrder = 9999  -- bem acima da janela
-    notifyRoot.Parent = resolveParent()  -- <<< usa o mesmo container universal
+    notifyRoot.DisplayOrder = 9999
+    notifyRoot.Parent = resolveParent()
 
     notifyList = Instance.new("Frame")
     notifyList.Name = "List"
@@ -585,31 +588,72 @@ end
 function SpliceUI.Notify(message: string, duration: number?)
     duration = tonumber(duration) or 2.0
     local _, list = getNotifyRoot()
-    ...
-
-function SpliceUI.Notify(message: string, duration: number?)
-    duration = tonumber(duration) or 2.0
-    local _, list = getNotifyRoot()
     local order = -os.clock()
-    local toast = Instance.new("Frame"); toast.Name="Toast"; toast.Size=UDim2.fromOffset(360,56); toast.BackgroundColor3=ActiveTheme.Colors.glass; toast.BackgroundTransparency=ActiveTheme.Transparency.glass; toast.BorderSizePixel=0; toast.LayoutOrder=order; toast.Parent=list
+
+    local toast = Instance.new("Frame")
+    toast.Name="Toast"
+    toast.Size=UDim2.fromOffset(360,56)
+    toast.BackgroundColor3=ActiveTheme.Colors.glass
+    toast.BackgroundTransparency=ActiveTheme.Transparency.glass
+    toast.BorderSizePixel=0
+    toast.LayoutOrder=order
+    toast.Parent=list
+
     local corner=Instance.new("UICorner"); corner.CornerRadius=UDim.new(0,12); corner.Parent=toast
     local stroke=Instance.new("UIStroke"); stroke.Color=ActiveTheme.Colors.stroke; stroke.Transparency=0.4; stroke.Parent=toast
-    local label=Instance.new("TextLabel"); label.BackgroundTransparency=1; label.Size=UDim2.new(1,-74,1,0); label.Position=UDim2.fromOffset(14,0); label.Font=ActiveTheme.Font; label.Text=message; label.TextColor3=ActiveTheme.Colors.text; label.TextWrapped=true; label.TextXAlignment=Enum.TextXAlignment.Left; label.TextYAlignment=Enum.TextYAlignment.Center; label.TextSize=16; label.Parent=toast
-    local counter=Instance.new("TextLabel"); counter.BackgroundTransparency=1; counter.Size=UDim2.fromOffset(60,20); counter.Position=UDim2.new(1,-62,0,8); counter.Font=ActiveTheme.Font; counter.TextColor3=ActiveTheme.Colors.subtext; counter.TextSize=14; counter.TextXAlignment=Enum.TextXAlignment.Right; counter.Text=string.format("%.1fs", duration); counter.Parent=toast
-    local bar=Instance.new("Frame"); bar.BackgroundColor3=ActiveTheme.Colors.accent; bar.BackgroundTransparency=0.1; bar.BorderSizePixel=0; bar.AnchorPoint=Vector2.new(0,1); bar.Position=UDim2.new(0,14,1,-8); bar.Size=UDim2.new(1,-28,0,4); bar.Parent=toast; local barC=Instance.new("UICorner"); barC.CornerRadius=UDim.new(0,2); barC.Parent=bar
+
+    local label=Instance.new("TextLabel")
+    label.BackgroundTransparency=1
+    label.Size=UDim2.new(1,-74,1,0)
+    label.Position=UDim2.fromOffset(14,0)
+    label.Font=ActiveTheme.Font
+    label.Text=message
+    label.TextColor3=ActiveTheme.Colors.text
+    label.TextWrapped=true
+    label.TextXAlignment=Enum.TextXAlignment.Left
+    label.TextYAlignment=Enum.TextYAlignment.Center
+    label.TextSize=16
+    label.Parent=toast
+
+    local counter=Instance.new("TextLabel")
+    counter.BackgroundTransparency=1
+    counter.Size=UDim2.fromOffset(60,20)
+    counter.Position=UDim2.new(1,-62,0,8)
+    counter.Font=ActiveTheme.Font
+    counter.TextColor3=ActiveTheme.Colors.subtext
+    counter.TextSize=14
+    counter.TextXAlignment=Enum.TextXAlignment.Right
+    counter.Text=string.format("%.1fs", duration)
+    counter.Parent=toast
+
+    local bar=Instance.new("Frame")
+    bar.BackgroundColor3=ActiveTheme.Colors.accent
+    bar.BackgroundTransparency=0.1
+    bar.BorderSizePixel=0
+    bar.AnchorPoint=Vector2.new(0,1)
+    bar.Position=UDim2.new(0,14,1,-8)
+    bar.Size=UDim2.new(1,-28,0,4)
+    bar.Parent=toast
+    local barC=Instance.new("UICorner"); barC.CornerRadius=UDim.new(0,2); barC.Parent=bar
+
     toast.BackgroundTransparency=1; label.TextTransparency=1; counter.TextTransparency=1; bar.Size=UDim2.new(0,0,0,4)
     TweenService:Create(toast, TweenInfo.new(0.18), {BackgroundTransparency=ActiveTheme.Transparency.glass}):Play()
     TweenService:Create(label, TweenInfo.new(0.18), {TextTransparency=0}):Play()
     TweenService:Create(counter, TweenInfo.new(0.18), {TextTransparency=0}):Play()
     TweenService:Create(bar, TweenInfo.new(duration), {Size=UDim2.new(1,-28,0,4)}):Play()
+
     local start=os.clock(); local alive=true; local hb
     hb=RunService.Heartbeat:Connect(function()
         if not alive then return end
         local left = math.max(0, duration - (os.clock()-start))
         counter.Text = string.format("%.1fs", left)
-        if left<=0 then alive=false; if hb then hb:Disconnect() end
-            local t1=TweenService:Create(toast, TweenInfo.new(0.18), {BackgroundTransparency=1}); local t2=TweenService:Create(label, TweenInfo.new(0.18), {TextTransparency=1}); local t3=TweenService:Create(counter, TweenInfo.new(0.18), {TextTransparency=1})
-            t1:Play(); t2:Play(); t3:Play(); t1.Completed:Connect(function() toast:Destroy() end)
+        if left<=0 then
+            alive=false; if hb then hb:Disconnect() end
+            local t1=TweenService:Create(toast, TweenInfo.new(0.18), {BackgroundTransparency=1})
+            local t2=TweenService:Create(label, TweenInfo.new(0.18), {TextTransparency=1})
+            local t3=TweenService:Create(counter, TweenInfo.new(0.18), {TextTransparency=1})
+            t1:Play(); t2:Play(); t3:Play()
+            t1.Completed:Connect(function() toast:Destroy() end)
         end
     end)
     return toast
@@ -626,7 +670,7 @@ function SpliceUI.AddControlRow(parent: Instance, left: Instance, right: Instanc
 end
 
 -- =============================================================================
--- Adapter Kavo (API de uso igual à Kavo UI)
+-- Adapter Kavo (API igual à Kavo UI)
 -- =============================================================================
 local Library = {}
 
@@ -656,14 +700,13 @@ function Library.CreateLib(title: string, themeName: string?)
     local self = {}
     self._win = SpliceUI.CreateWindow({ title = title or "splice.lol", size = UDim2.fromOffset(620,500) })
     self._tabs = {}
-    -- cria um tabbar dinâmico
     self._win.Tabs = SpliceUI.Tabs(self._win.Content, {})
     return setmetatable(self, WindowMT)
 end
 
 function WindowMT:NewTab(name: string)
     if self._tabs[name] then return self._tabs[name] end
-    local page = self._win.Tabs.Add(name)
+    self._win.Tabs.Add(name)
     self._win.ActiveTab = self._win.ActiveTab or name
     local obj = setmetatable({_win=self._win, _name=name}, TabMT)
     self._tabs[name] = obj
@@ -682,63 +725,57 @@ function SectionMT:NewButton(text, info, callback)
     b.MouseButton1Click:Connect(function() if typeof(callback)=="function" then callback() end end)
     return b
 end
+
 function SectionMT:NewToggle(text, info, callback)
     local t = SpliceUI.Toggle(self._parent, {text=tostring(text or "Toggle"), default=false})
-    if t.Changed and t.Changed.Event then t.Changed.Event:Connect(function() if typeof(callback)=="function" then callback(t.Get()) end end) end
+    if t.Changed and typeof(t.Changed.Connect) == "function" then
+        t.Changed:Connect(function()
+            if typeof(callback)=="function" then callback(t.Get()) end
+        end)
+    end
     return t
 end
+
 function SectionMT:NewSlider(text, info, min, max, callback)
-    local s = SpliceUI.Slider(self._parent, {text=tostring(text or "Slider"), min=tonumber(min) or 0, max=tonumber(max) or 100, default=tonumber(min) or 0})
-    if s.Changed and s.Changed.Event then s.Changed.Event:Connect(function() if typeof(callback)=="function" then callback(s.Get()) end end) end
+    local s = SpliceUI.Slider(self._parent, {text=tostring(text or "Slider"),
+        min=tonumber(min) or 0, max=tonumber(max) or 100, default=tonumber(min) or 0})
+    if s.Changed and typeof(s.Changed.Connect) == "function" then
+        s.Changed:Connect(function()
+            if typeof(callback)=="function" then callback(s.Get()) end
+        end)
+    end
     return s
 end
+
 function SectionMT:NewDropdown(text, info, list, callback)
-    local d = SpliceUI.Dropdown(self._parent, {text=tostring(text or "Dropdown"), items=(typeof(list)=="table" and list or {"A","B"}), default=(typeof(list)=="table" and list[1]) or "A"})
-    local old = d.Set; d.Set=function(v) old(v); if typeof(callback)=="function" then callback(v) end end
+    local d = SpliceUI.Dropdown(self._parent, {text=tostring(text or "Dropdown"),
+        items=(typeof(list)=="table" and list or {"A","B"}), default=(typeof(list)=="table" and list[1]) or "A"})
+    local old = d.Set
+    d.Set=function(v) old(v); if typeof(callback)=="function" then callback(v) end end
     return d
 end
+
 function SectionMT:NewTextBox(text, placeholder, callback)
-  -- label acima, como no Kavo
-  SpliceUI.Label(self._parent, tostring(text or "Textbox"))
-
-  -- cria o input da base
-  local i = SpliceUI.Input(self._parent, { placeholder = tostring(placeholder or "Digite...") })
-
-  -- helper seguro para pegar o texto atual
-  local function currentText()
-    -- preferir API da lib, se existir
-    if typeof(i) == "table" then
-      if typeof(i.Get) == "function" then
-        local ok, v = pcall(i.Get)
-        if ok then return v end
-      end
-      -- fallback: se expuser o Instance
-      if typeof(i.Instance) == "Instance" and i.Instance:IsA("TextBox") then
-        return i.Instance.Text
-      end
+    SpliceUI.Label(self._parent, tostring(text or "Textbox"))
+    local i = SpliceUI.Input(self._parent, { placeholder = tostring(placeholder or "Digite...") })
+    local function currentText()
+        if typeof(i) == "table" then
+            if typeof(i.Get) == "function" then
+                local ok, v = pcall(i.Get); if ok then return v end
+            end
+            if typeof(i.Instance) == "Instance" and i.Instance:IsA("TextBox") then
+                return i.Instance.Text
+            end
+        end
+        return ""
     end
-    return ""
-  end
-
-  -- dispara no change (quando disponível)
-  if typeof(i) == "table" and i.Changed and typeof(i.Changed.Connect) == "function" then
-    i.Changed:Connect(function()
-      if typeof(callback) == "function" then
-        callback(currentText())
-      end
-    end)
-  end
-
-  -- também dispara ao sair do foco (mais fiel ao Kavo)
-  if typeof(i) == "table" and typeof(i.Instance) == "Instance" and i.Instance:IsA("TextBox") then
-    i.Instance.FocusLost:Connect(function()
-      if typeof(callback) == "function" then
-        callback(currentText())
-      end
-    end)
-  end
-
-  return i
+    if typeof(i) == "table" and i.Changed and typeof(i.Changed.Connect) == "function" then
+        i.Changed:Connect(function() if typeof(callback)=="function" then callback(currentText()) end end)
+    end
+    if typeof(i) == "table" and typeof(i.Instance) == "Instance" and i.Instance:IsA("TextBox") then
+        i.Instance.FocusLost:Connect(function() if typeof(callback)=="function" then callback(currentText()) end end)
+    end
+    return i
 end
 
 function SectionMT:NewLabel(text) return SpliceUI.Label(self._parent, tostring(text or "Label")) end
@@ -749,11 +786,15 @@ function SectionMT:NewKeybind(text, info, defaultKey, callback)
     local key = defaultKey or Enum.KeyCode.RightShift
     UserInputService.InputBegan:Connect(function(i,gpe) if gpe then return end; if i.KeyCode==key and typeof(callback)=="function" then callback() end end)
 end
+
 function SectionMT:NewColorPicker(text, info, defaultColor, callback)
     local choices = {"Vermelho","Ciano","Verde","Roxo"}
     local d = SpliceUI.Dropdown(self._parent, {text=tostring(text or "Color"), items=choices, default="Vermelho"})
     local function map(c)
-        if c=="Ciano" then return Color3.fromRGB(0,220,255) elseif c=="Verde" then return Color3.fromRGB(40,220,120) elseif c=="Roxo" then return Color3.fromRGB(170,90,255) else return Color3.fromRGB(255,32,32) end
+        if c=="Ciano" then return Color3.fromRGB(0,220,255)
+        elseif c=="Verde" then return Color3.fromRGB(40,220,120)
+        elseif c=="Roxo" then return Color3.fromRGB(170,90,255)
+        else return Color3.fromRGB(255,32,32) end
     end
     local old=d.Set; d.Set=function(v) old(v); if typeof(callback)=="function" then callback(map(v)) end end
     return d
