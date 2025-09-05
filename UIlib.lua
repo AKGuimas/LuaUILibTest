@@ -351,6 +351,21 @@ function SpliceUI.Toggle(parent: Instance, opts: {text: string, default: boolean
     local function set(v: boolean) value=v; SpliceUI.SetState(id,value); PlayTween(btn, TweenInfo.new(0.15), {BackgroundColor3=value and ActiveTheme.Colors.accent or ActiveTheme.Colors.panel, BackgroundTransparency=value and 0.05 or ActiveTheme.Transparency.panel}); PlayTween(knob, TweenInfo.new(0.15), {Position=value and UDim2.fromOffset(24,3) or UDim2.fromOffset(3,3)}) end
     btn.MouseButton1Click:Connect(function() set(not value) end)
     frame.Parent=parent
+
+    local changed = Instance.new("BindableEvent")
+-- dentro do set(v):
+-- (logo após os PlayTween)
+changed:Fire(value)
+
+-- retorno:
+return {
+    Instance = frame,
+    Get = function() return value end,
+    Set = set,
+    Changed = changed.Event,  -- <<< expõe o Event
+}
+
+    
     return {Instance=frame, Get=function() return value end, Set=set, Changed=Instance.new("BindableEvent")}
 end
 
@@ -359,6 +374,7 @@ function SpliceUI.Slider(parent: Instance, opts: {text: string, min: number, max
     local min = opts.min or 0; local max = opts.max or 100; local step = opts.step or 1
     local value = SpliceUI.GetState(id, opts.default or min)
     local frame = New("Frame", {BackgroundTransparency=1, Size=UDim2.new(1,0,0,46)})
+    local changed = Instance.new("BindableEvent")
     local top = New("Frame", {BackgroundTransparency=1, Size=UDim2.new(1,0,0,22)}); top.Parent=frame
     local label = New("TextLabel", {BackgroundTransparency=1, Size=UDim2.new(1,-60,1,0), Font=ActiveTheme.Font, Text=opts.text or "Slider", TextColor3=ActiveTheme.Colors.text, TextXAlignment=Enum.TextXAlignment.Left, TextSize=16}); label.Parent=top
     local valLabel = New("TextLabel", {BackgroundTransparency=1, Size=UDim2.new(0,60,1,0), Position=UDim2.new(1,-60,0,0), Font=ActiveTheme.Font, Text=tostring(value), TextColor3=ActiveTheme.Colors.subtext, TextXAlignment=Enum.TextXAlignment.Right, TextSize=14}); valLabel.Parent=top
@@ -376,7 +392,13 @@ function SpliceUI.Slider(parent: Instance, opts: {text: string, min: number, max
     UserInputService.InputChanged:Connect(function(i) if sliding and i.UserInputType==Enum.UserInputType.MouseMovement then local rel=(i.Position.X-bar.AbsolutePosition.X)/bar.AbsoluteSize.X; set(min+rel*(max-min)) end end)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then sliding=false end end)
     frame.Parent=parent
-    return {Instance=frame, Get=function() return value end, Set=set, Changed=Instance.new("BindableEvent")}
+    changed:Fire(value)
+return {
+    Instance = frame,
+    Get = function() return value end,
+    Set = set,
+    Changed = changed.Event  -- <<< aqui é o que os usuários vão conectar
+}
 end
 
 function SpliceUI.Dropdown(parent: Instance, opts: {text: string, items: {string}, default: string?, key: string?})
@@ -388,9 +410,20 @@ function SpliceUI.Dropdown(parent: Instance, opts: {text: string, items: {string
     New("UICorner", {CornerRadius=UDim.new(0,ActiveTheme.Corner)}).Parent=box; New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.5}).Parent=box; box.Parent=frame
 
     -- Lista sobreposta ao ScreenGui (sem clip)
-    local rootGui = frame:FindFirstAncestorWhichIsA("ScreenGui") or PLAYER_GUI
-    local listFrame = New("Frame", {BackgroundColor3=ActiveTheme.Colors.glass, BackgroundTransparency=ActiveTheme.Transparency.glass, Size=UDim2.fromOffset(0,0), BorderSizePixel=0, Visible=false, ZIndex=200})
-    New("UICorner", {CornerRadius=UDim.new(0,ActiveTheme.Corner)}).Parent=listFrame; New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.4}).Parent=listFrame; listFrame.Parent=rootGui
+    -- Lista sobreposta no mesmo container universal da janela
+local overlayParent = resolveParent()
+local listFrame = New("Frame", {
+    BackgroundColor3 = ActiveTheme.Colors.glass,
+    BackgroundTransparency = ActiveTheme.Transparency.glass,
+    Size = UDim2.fromOffset(0,0),
+    BorderSizePixel = 0,
+    Visible = false,
+    ZIndex = 300,  -- acima da janela e bem abaixo das toasts
+})
+New("UICorner", {CornerRadius = UDim.new(0, ActiveTheme.Corner)}).Parent = listFrame
+New("UIStroke", {Color = ActiveTheme.Colors.stroke, Transparency = 0.4}).Parent = listFrame
+listFrame.Parent = overlayParent
+
     local uilist = New("UIListLayout", {Padding=UDim.new(0,4)}); uilist.Parent=listFrame
 
     local function positionList()
@@ -408,6 +441,25 @@ function SpliceUI.Dropdown(parent: Instance, opts: {text: string, items: {string
 
     box.MouseButton1Click:Connect(function() if listFrame.Visible then close() else open() end end)
     RunService.RenderStepped:Connect(function() if listFrame.Visible then positionList() end end)
+    -- fechar ao clicar fora
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe or not listFrame.Visible then return end
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+
+    local pos = input.Position
+    local a = listFrame.AbsolutePosition
+    local s = listFrame.AbsoluteSize
+    local insideList = (pos.X>=a.X and pos.X<=a.X+s.X and pos.Y>=a.Y and pos.Y<=a.Y+s.Y)
+
+    local bA = box.AbsolutePosition
+    local bS = box.AbsoluteSize
+    local insideBox = (pos.X>=bA.X and pos.X<=bA.X+bS.X and pos.Y>=bA.Y and pos.Y<=bA.Y+bS.Y)
+
+    if not insideList and not insideBox then
+        close()
+    end
+end)
+
     UserInputService.InputBegan:Connect(function(i,gpe) if gpe then return end; if listFrame.Visible and i.UserInputType==Enum.UserInputType.MouseButton1 then
         local pos = i.Position; local a = listFrame.AbsolutePosition; local s = listFrame.AbsoluteSize
         local inside = (pos.X>=a.X and pos.X<=a.X+s.X and pos.Y>=a.Y and pos.Y<=a.Y+s.Y)
