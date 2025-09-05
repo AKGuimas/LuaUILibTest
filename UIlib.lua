@@ -239,7 +239,6 @@ contentLayout.Padding = UDim.new(0, 10)
 contentLayout.FillDirection = Enum.FillDirection.Vertical
 contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
 contentLayout.Parent = content
-    content.Parent = bg; New("UIListLayout", {Padding=UDim.new(0,10), FillDirection=Enum.FillDirection.Vertical, SortOrder=Enum.SortOrder.LayoutOrder}).Parent=content
 
     MakeDraggable(container, topbar)
     local minimized=false
@@ -343,31 +342,53 @@ end
 function SpliceUI.Toggle(parent: Instance, opts: {text: string, default: boolean?, key: string?})
     local id = opts.key or ("toggle_"..HttpService:GenerateGUID(false))
     local value = SpliceUI.GetState(id, opts.default == true)
+
     local frame = New("Frame", {BackgroundTransparency=1, Size=UDim2.new(1,0,0,36)})
-    local label = New("TextLabel", {BackgroundTransparency=1, Size=UDim2.new(1,-56,1,0), Font=ActiveTheme.Font, Text=opts.text or "Toggle", TextColor3=ActiveTheme.Colors.text, TextXAlignment=Enum.TextXAlignment.Left, TextSize=16}); label.Parent=frame
-    local btn = New("TextButton", {AutoButtonColor=false, BackgroundColor3=value and ActiveTheme.Colors.accent or ActiveTheme.Colors.panel, BackgroundTransparency=value and 0.05 or ActiveTheme.Transparency.panel, Size=UDim2.fromOffset(44,24), Position=UDim2.new(1,-44,0.5,0), AnchorPoint=Vector2.new(0,0.5), Text=""});
-    New("UICorner", {CornerRadius=UDim.new(0,12)}).Parent=btn; New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.5}).Parent=btn; btn.Parent=frame
-    local knob = New("Frame", {BackgroundColor3=Color3.new(1,1,1), Size=UDim2.fromOffset(18,18), Position=value and UDim2.fromOffset(24,3) or UDim2.fromOffset(3,3), BorderSizePixel=0}); New("UICorner", {CornerRadius=UDim.new(0,9)}).Parent=knob; knob.Parent=btn
-    local function set(v: boolean) value=v; SpliceUI.SetState(id,value); PlayTween(btn, TweenInfo.new(0.15), {BackgroundColor3=value and ActiveTheme.Colors.accent or ActiveTheme.Colors.panel, BackgroundTransparency=value and 0.05 or ActiveTheme.Transparency.panel}); PlayTween(knob, TweenInfo.new(0.15), {Position=value and UDim2.fromOffset(24,3) or UDim2.fromOffset(3,3)}) end
-    btn.MouseButton1Click:Connect(function() set(not value) end)
-    frame.Parent=parent
+    local label = New("TextLabel", {BackgroundTransparency=1, Size=UDim2.new(1,-56,1,0),
+        Font=ActiveTheme.Font, Text=opts.text or "Toggle", TextColor3=ActiveTheme.Colors.text,
+        TextXAlignment=Enum.TextXAlignment.Left, TextSize=16})
+    label.Parent = frame
+
+    local btn = New("TextButton", {AutoButtonColor=false,
+        BackgroundColor3=value and ActiveTheme.Colors.accent or ActiveTheme.Colors.panel,
+        BackgroundTransparency=value and 0.05 or ActiveTheme.Transparency.panel,
+        Size=UDim2.fromOffset(44,24), Position=UDim2.new(1,-44,0.5,0),
+        AnchorPoint=Vector2.new(0,0.5), Text=""})
+    New("UICorner",{CornerRadius=UDim.new(0,12)}).Parent=btn
+    New("UIStroke",{Color=ActiveTheme.Colors.stroke,Transparency=0.5}).Parent=btn
+    btn.Parent = frame
+
+    local knob = New("Frame",{BackgroundColor3=Color3.new(1,1,1),Size=UDim2.fromOffset(18,18),
+        Position=value and UDim2.fromOffset(24,3) or UDim2.fromOffset(3,3),BorderSizePixel=0})
+    New("UICorner",{CornerRadius=UDim.new(0,9)}).Parent=knob
+    knob.Parent = btn
 
     local changed = Instance.new("BindableEvent")
--- dentro do set(v):
--- (logo após os PlayTween)
-changed:Fire(value)
 
--- retorno:
-return {
-    Instance = frame,
-    Get = function() return value end,
-    Set = set,
-    Changed = changed.Event,  -- <<< expõe o Event
-}
+    local function set(v:boolean)
+        value = v
+        SpliceUI.SetState(id, value)
+        PlayTween(btn, TweenInfo.new(0.15), {
+            BackgroundColor3 = value and ActiveTheme.Colors.accent or ActiveTheme.Colors.panel,
+            BackgroundTransparency = value and 0.05 or ActiveTheme.Transparency.panel,
+        })
+        PlayTween(knob, TweenInfo.new(0.15), {
+            Position = value and UDim2.fromOffset(24,3) or UDim2.fromOffset(3,3)
+        })
+        changed:Fire(value) -- <<< dispara aqui
+    end
 
-    
-    return {Instance=frame, Get=function() return value end, Set=set, Changed=Instance.new("BindableEvent")}
+    btn.MouseButton1Click:Connect(function() set(not value) end)
+    frame.Parent = parent
+
+    return {
+        Instance = frame,
+        Get = function() return value end,
+        Set = set,
+        Changed = changed.Event,
+    }
 end
+
 
 function SpliceUI.Slider(parent: Instance, opts: {text: string, min: number, max: number, step: number?, default: number?, key: string?})
     local id = opts.key or ("slider_"..HttpService:GenerateGUID(false))
@@ -387,12 +408,12 @@ function SpliceUI.Slider(parent: Instance, opts: {text: string, min: number, max
         value=newVal; SpliceUI.SetState(id,value); valLabel.Text=tostring(value)
         PlayTween(fill, TweenInfo.new(0.08), {Size=UDim2.new((value-min)/(max-min),0,1,0)})
         PlayTween(knob, TweenInfo.new(0.08), {Position=UDim2.new((value-min)/(max-min),0,0.5,0)})
+        changed:Fire(value)
     end
     bar.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then sliding=true; local rel=(i.Position.X-bar.AbsolutePosition.X)/bar.AbsoluteSize.X; set(min+rel*(max-min)) end end)
     UserInputService.InputChanged:Connect(function(i) if sliding and i.UserInputType==Enum.UserInputType.MouseMovement then local rel=(i.Position.X-bar.AbsolutePosition.X)/bar.AbsoluteSize.X; set(min+rel*(max-min)) end end)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then sliding=false end end)
     frame.Parent=parent
-    changed:Fire(value)
 return {
     Instance = frame,
     Get = function() return value end,
