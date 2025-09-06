@@ -599,6 +599,14 @@ function SpliceUI.Dropdown(parent, opts)
     listFrame.ZIndex = 2000
     listFrame.Parent = overlay
 
+frame.AncestryChanged:Connect(function(_, parent)
+    if not parent and listFrame then
+        listFrame:Destroy()
+        listFrame = nil
+    end
+end)
+
+  
     New("UICorner", {CornerRadius=UDim.new(0,ActiveTheme.Corner)}).Parent = listFrame
     New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.4}).Parent = listFrame
     local uilist = New("UIListLayout", {Padding=UDim.new(0,4)}); uilist.Parent = listFrame
@@ -611,11 +619,18 @@ function SpliceUI.Dropdown(parent, opts)
     end
 
     local function open()
-        positionList()
-        listFrame.Visible = true
-        TweenService:Create(listFrame, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-            {Size = UDim2.fromOffset(box.AbsoluteSize.X, #opts.items*30 + 10)}):Play()
-    end
+    positionList()
+    local itemH, gap, extra = 26, 4, 8  -- 26px por item, 4px de spacing (UIListLayout), ~8px extra
+    local n = #opts.items
+    local h = (n * itemH) + ((n - 1) * gap) + extra
+    listFrame.Visible = true
+    TweenService:Create(
+        listFrame,
+        TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        { Size = UDim2.fromOffset(box.AbsoluteSize.X, h) }
+    ):Play()
+end
+
 
     local function close()
         local tw = TweenService:Create(listFrame, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
@@ -674,6 +689,156 @@ function SpliceUI.Dropdown(parent, opts)
     frame.Parent = parent
     return { Instance = frame, Get=function() return value end, Set=set, Changed=Instance.new("BindableEvent") }
 end
+
+-- ColorPicker com paleta/preview e overlay no topo
+function SpliceUI.ColorPicker(parent, opts)
+    opts = opts or {}
+    local id    = opts.key or ("color_"..HttpService:GenerateGUID(false))
+    local value = SpliceUI.GetState(id, opts.default or Color3.fromRGB(255,32,32))
+
+    local function toHex(c)
+        return string.format("#%02X%02X%02X",
+            math.floor(c.R*255+0.5), math.floor(c.G*255+0.5), math.floor(c.B*255+0.5))
+    end
+
+    local frame = New("Frame",{BackgroundTransparency=1, Size=UDim2.new(1,0,0,36)})
+    local label = New("TextLabel",{
+        BackgroundTransparency=1, Size=UDim2.new(0.35,0,1,0),
+        Font=ActiveTheme.Font, Text=opts.text or "Color",
+        TextColor3=ActiveTheme.Colors.text, TextXAlignment=Enum.TextXAlignment.Left, TextSize=16
+    }); label.Parent = frame
+
+    local box = New("TextButton",{
+        AutoButtonColor=false, BackgroundColor3=ActiveTheme.Colors.panel,
+        BackgroundTransparency=ActiveTheme.Transparency.panel,
+        Size=UDim2.new(0.65,0,1,0), Position=UDim2.new(0.35,8,0,0),
+        Text = toHex(value), Font=ActiveTheme.Font, TextSize=15,
+        TextColor3 = ActiveTheme.Colors.text, ZIndex=20
+    })
+    New("UICorner",{CornerRadius=UDim.new(0,ActiveTheme.Corner)}).Parent = box
+    New("UIStroke",{Color=ActiveTheme.Colors.stroke, Transparency=0.5}).Parent = box
+    box.Parent = frame
+
+    local preview = New("Frame",{
+        Size=UDim2.fromOffset(18,18), Position=UDim2.new(0,10,0.5,0),
+        AnchorPoint=Vector2.new(0,0.5), BackgroundColor3=value, BorderSizePixel=0, ZIndex=21
+    })
+    New("UICorner",{CornerRadius=UDim.new(0,6)}).Parent = preview
+    preview.Parent = box
+
+    local hexLbl = New("TextLabel",{
+        BackgroundTransparency=1, Size=UDim2.new(1,-38,1,0), Position=UDim2.fromOffset(34,0),
+        Font=ActiveTheme.Font, TextXAlignment=Enum.TextXAlignment.Left, TextSize=15,
+        Text = toHex(value), TextColor3=ActiveTheme.Colors.text, ZIndex=21
+    })
+    hexLbl.Parent = box
+
+    -- Overlay com grade de cores
+    local overlay  = getOverlayRoot()
+    local paletteF = New("Frame",{
+        Name="Palette", BackgroundColor3=ActiveTheme.Colors.glass,
+        BackgroundTransparency=ActiveTheme.Transparency.glass, BorderSizePixel=0,
+        Visible=false, Size=UDim2.fromOffset(0,0), ZIndex=2000
+    })
+    New("UICorner",{CornerRadius=UDim.new(0,ActiveTheme.Corner)}).Parent = paletteF
+    New("UIStroke",{Color=ActiveTheme.Colors.stroke, Transparency=0.4}).Parent = paletteF
+    paletteF.Parent = overlay
+
+frame.AncestryChanged:Connect(function(_, parent)
+    if not parent and paletteF then
+        paletteF:Destroy()
+        paletteF = nil
+    end
+end)
+
+  
+    local grid = Instance.new("UIGridLayout")
+    grid.CellSize = UDim2.fromOffset(26,26)
+    grid.CellPadding = UDim2.fromOffset(8,8)
+    grid.SortOrder = Enum.SortOrder.LayoutOrder
+    grid.Parent = paletteF
+    local pad = Instance.new("UIPadding")
+    pad.PaddingTop, pad.PaddingBottom = UDim.new(0,10), UDim.new(0,10)
+    pad.PaddingLeft, pad.PaddingRight = UDim.new(0,10), UDim.new(0,10)
+    pad.Parent = paletteF
+
+    local palette = opts.palette or {
+        Color3.fromRGB(255,59,59),  Color3.fromRGB(255,113,61),
+        Color3.fromRGB(255,196,0),  Color3.fromRGB(0,207,103),
+        Color3.fromRGB(0,199,255),  Color3.fromRGB(74,105,255),
+        Color3.fromRGB(180,70,255), Color3.fromRGB(255,32,32),
+        Color3.fromRGB(255,0,149),  Color3.fromRGB(255,255,255),
+        Color3.fromRGB(180,190,200),Color3.fromRGB(31,31,36),
+    }
+
+    local function positionPalette()
+    local p, s = box.AbsolutePosition, box.AbsoluteSize
+    local cols, item, gap, pad = 6, 26, 8, 10     -- 6 colunas, 26px célula, 8px spacing, 10px padding
+    local rows = math.ceil(#palette / cols)
+    local h = (rows * item) + ((rows - 1) * gap) + (pad * 2)
+    paletteF.Position = UDim2.fromOffset(p.X, p.Y + s.Y + 4)
+    paletteF.Size     = UDim2.fromOffset(s.X, h)
+end
+
+
+    local changed = Instance.new("BindableEvent")
+    local function setColor(c: Color3)
+        value = c
+        preview.BackgroundColor3 = value
+        hexLbl.Text = toHex(value)
+        SpliceUI.SetState(id, value)
+        changed:Fire(value)
+    end
+
+    local function open()
+        positionPalette()
+        paletteF.Visible = true
+        TweenService:Create(paletteF, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Size = UDim2.fromOffset(box.AbsoluteSize.X, paletteF.Size.Y.Offset)}):Play()
+    end
+    local function close()
+        local tw = TweenService:Create(paletteF, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+            {Size = UDim2.fromOffset(box.AbsoluteSize.X, 0)})
+        tw.Completed:Connect(function() paletteF.Visible = false end)
+        tw:Play()
+    end
+
+    for _,c in ipairs(palette) do
+        local sw = New("TextButton",{
+            AutoButtonColor=false, BackgroundColor3=c, BorderSizePixel=0,
+            Size=UDim2.fromOffset(26,26), Text="", ZIndex=2001
+        })
+        New("UICorner",{CornerRadius=UDim.new(0,6)}).Parent = sw
+        sw.MouseButton1Click:Connect(function() setColor(c); close() end)
+        sw.Parent = paletteF
+    end
+
+    box.MouseButton1Click:Connect(function()
+        if paletteF.Visible then close() else open() end
+    end)
+    RunService.RenderStepped:Connect(function()
+        if paletteF.Visible then positionPalette() end
+    end)
+    UserInputService.InputBegan:Connect(function(input, gpe)
+        if gpe or not paletteF.Visible then return end
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+        local pos = input.Position
+        local a,s = paletteF.AbsolutePosition, paletteF.AbsoluteSize
+        local inPal = (pos.X>=a.X and pos.X<=a.X+s.X and pos.Y>=a.Y and pos.Y<=a.Y+s.Y)
+        local bA,bS = box.AbsolutePosition, box.AbsoluteSize
+        local inBox = (pos.X>=bA.X and pos.X<=bA.X+bS.X and pos.Y>=bA.Y and pos.Y<=bA.Y+bS.Y)
+        if not inPal and not inBox then close() end
+    end)
+
+    frame.Parent = parent
+    return {
+        Instance = frame,
+        Get      = function() return value end,
+        Set      = setColor,
+        Changed  = changed.Event
+    }
+end
+
 
 ---------------------------------------------------------------------
 -- Notificações (stack com contador)
@@ -881,17 +1046,11 @@ function SectionMT:NewKeybind(text, info, defaultKey, callback)
   UserInputService.InputBegan:Connect(function(i,gpe) if gpe then return end; if i.KeyCode==key and typeof(callback)=="function" then callback() end end)
 end
 function SectionMT:NewColorPicker(text, info, defaultColor, callback)
-  local choices = {"Vermelho","Ciano","Verde","Roxo"}
-  local d = SpliceUI.Dropdown(self._parent, {text=tostring(text or "Color"), items=choices, default="Vermelho"})
-  local function map(c)
-    if c=="Ciano" then return Color3.fromRGB(0,220,255)
-    elseif c=="Verde" then return Color3.fromRGB(40,220,120)
-    elseif c=="Roxo" then return Color3.fromRGB(170,90,255)
-    else return Color3.fromRGB(255,32,32) end
-  end
-  local old=d.Set; d.Set=function(v) old(v); if typeof(callback)=="function" then callback(map(v)) end end
-  return d
+    local cp = SpliceUI.ColorPicker(self._parent, { text = tostring(text or "Color"), default = defaultColor })
+    cp.Changed:Connect(function(c) if typeof(callback)=="function" then callback(c) end end)
+    return cp
 end
+
 
 -- API extra
 function Library.Notify(msg, dur) SpliceUI.Notify(msg, dur or 2) end
