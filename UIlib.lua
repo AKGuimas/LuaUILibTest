@@ -695,7 +695,7 @@ end
 
   frame.Parent=parent
   return { Instance=frame, Get=function() return value end, Set=set, Changed=Instance.new("BindableEvent").Event }
-end)
+end))
 
 ---------------------------------------------------------------------
 -- Notificações (stack com contador)
