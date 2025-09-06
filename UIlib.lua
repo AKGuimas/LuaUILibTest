@@ -107,6 +107,35 @@ local function MakeDraggable(frame, handle)
   end)
 end
 
+-- Ícones vetoriais (sem asset): X e traço
+local function PaintXIcon(btn: GuiButton)
+    local a = Instance.new("Frame")
+    a.Size = UDim2.new(0, 14, 0, 2)
+    a.AnchorPoint = Vector2.new(0.5, 0.5)
+    a.Position = UDim2.fromScale(0.5, 0.5)
+    a.BackgroundColor3 = Color3.new(1,1,1)
+    a.BorderSizePixel = 0
+    a.Rotation = 45
+    a.ZIndex = btn.ZIndex + 1
+    a.Parent = btn
+
+    local b = a:Clone()
+    b.Rotation = -45
+    b.Parent = btn
+end
+
+local function PaintMinusIcon(btn: GuiButton)
+    local m = Instance.new("Frame")
+    m.Size = UDim2.new(0, 14, 0, 2)
+    m.AnchorPoint = Vector2.new(0.5, 0.5)
+    m.Position = UDim2.fromScale(0.5, 0.5)
+    m.BackgroundColor3 = Color3.new(1,1,1)
+    m.BorderSizePixel = 0
+    m.ZIndex = btn.ZIndex + 1
+    m.Parent = btn
+end
+
+
 local function resolveParent()
   if ParentOverride and ParentOverride.Parent then return ParentOverride end
   local ok,h = pcall(function() if typeof(gethui)=="function" then return gethui() end end)
@@ -175,6 +204,8 @@ function Window.new(opts)
   New("UIStroke",{Color=ActiveTheme.Colors.stroke, Transparency=0.6}).Parent=btnClose
   btnClose.Parent = top
 
+  PaintXIcon(btnclose)
+
   local btnMin = New("TextButton",{AutoButtonColor=false, Size=UDim2.fromOffset(28,28), Position=UDim2.new(1,-72,0.5,0),
     AnchorPoint=Vector2.new(0.5,0.5), BackgroundColor3=ActiveTheme.Colors.panel,
     BackgroundTransparency=ActiveTheme.Transparency.panel, Text="–", TextColor3=ActiveTheme.Colors.text,
@@ -182,6 +213,8 @@ function Window.new(opts)
   New("UICorner",{CornerRadius=UDim.new(0,10)}).Parent=btnMin
   New("UIStroke",{Color=ActiveTheme.Colors.stroke, Transparency=0.6}).Parent=btnMin
   btnMin.Parent = top
+
+  PaintMinusIcon(btnMin)
 
   -- Conteúdo com scroll
   local content = Instance.new("ScrollingFrame")
@@ -226,20 +259,74 @@ end
 
 function Window:SetScale(s) if self._scale then self._scale.Scale = math.clamp(s,0.7,1.5) end end
 
-function Window:AddSection(titleText, tabName)
-  local dest = self.Content
-  if self.Tabs and tabName and self.Tabs.Pages[tabName] then dest = self.Tabs.Pages[tabName] end
+function Window:AddSection(titleText: string, tabName: string?)
+    local dest: Instance = self.Content
+    local target = tabName or self.ActiveTab
+    if self.Tabs and target and self.Tabs.Pages[target] then
+        dest = self.Tabs.Pages[target]
+    end
 
-  local section = New("Frame", {BackgroundTransparency=1, Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y})
-  local head = New("TextLabel", {BackgroundTransparency=1, Size=UDim2.new(1,0,0,20), Font=ActiveTheme.Font,
-    Text=titleText, TextColor3=ActiveTheme.Colors.subtext, TextXAlignment=Enum.TextXAlignment.Left, TextSize=14})
-  head.Parent=section
-  local body = New("Frame", {BackgroundTransparency=1, Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y})
-  body.Parent=section
-  New("UIListLayout",{Padding=UDim.new(0,8), FillDirection=Enum.FillDirection.Vertical, SortOrder=Enum.SortOrder.LayoutOrder}).Parent=body
-  section.Parent = dest
-  return body
+    -- Card da seção
+    local card = New("Frame", {
+        BackgroundColor3 = ActiveTheme.Colors.panel,
+        BackgroundTransparency = ActiveTheme.Transparency.panel,
+        Size = UDim2.new(1, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        ClipsDescendants = true,
+    })
+    New("UICorner", {CornerRadius = UDim.new(0, ActiveTheme.Corner)}).Parent = card
+    New("UIStroke", {Color = ActiveTheme.Colors.stroke, Transparency = 0.65}).Parent = card
+
+    local cardPad = Instance.new("UIPadding")
+    cardPad.PaddingLeft   = UDim.new(0, 12)
+    cardPad.PaddingRight  = UDim.new(0, 12)
+    cardPad.PaddingTop    = UDim.new(0, 10)
+    cardPad.PaddingBottom = UDim.new(0, 10)
+    cardPad.Parent = card
+
+    -- Header da seção
+    local header = New("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 22),
+    })
+    header.Parent = card
+
+    New("TextLabel", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, -8, 1, 0),
+        Font = ActiveTheme.Font,
+        Text = titleText or "Seção",
+        TextColor3 = ActiveTheme.Colors.subtext,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextSize = 15,
+    }).Parent = header
+
+    -- Linha separadora
+    New("Frame", {
+        BackgroundColor3 = ActiveTheme.Colors.stroke,
+        BackgroundTransparency = 0.6,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, 1),
+    }).Parent = card
+
+    -- Corpo (onde os controles da seção ficam)
+    local body = New("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+    })
+    body.Parent = card
+
+    New("UIListLayout", {
+        Padding = UDim.new(0, 8),
+        FillDirection = Enum.FillDirection.Vertical,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }).Parent = body
+
+    card.Parent = dest
+    return body
 end
+
 
 function SpliceUI.Tabs(parent, tabNames)
   local row = New("Frame",{BackgroundTransparency=1, Size=UDim2.new(1,0,0,40)})
@@ -290,11 +377,29 @@ end
 ---------------------------------------------------------------------
 -- Componentes
 ---------------------------------------------------------------------
-function SpliceUI.Label(parent, text)
-  local l = New("TextLabel",{BackgroundTransparency=1, Size=UDim2.new(1,0,0,20), Font=ActiveTheme.Font,
-    Text=text, TextColor3=ActiveTheme.Colors.subtext, TextXAlignment=Enum.TextXAlignment.Left, TextSize=14})
-  l.Parent=parent; return l
+function SpliceUI.Label(parent: Instance, text: string, opts: {muted: boolean?, size: number?}?)
+    opts = opts or {}
+    local lbl = New("TextLabel", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 0),          -- altura automática
+        AutomaticSize = Enum.AutomaticSize.Y,  -- <<< cresce conforme o texto
+        Font = ActiveTheme.Font,
+        Text = text or "",
+        TextColor3 = (opts.muted and ActiveTheme.Colors.subtext) or ActiveTheme.Colors.text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextWrapped = true,
+        LineHeight = 1.1,
+        TextSize = opts.size or 14,
+    })
+    -- padding inferior suave para não “grudar”
+    local pad = Instance.new("UIPadding")
+    pad.PaddingBottom = UDim.new(0, 2)
+    pad.Parent = lbl
+
+    lbl.Parent = parent
+    return lbl
 end
+
 
 function SpliceUI.Button(parent, opts)
   local btn = New("TextButton",{AutoButtonColor=false, BackgroundColor3=ActiveTheme.Colors.panel,
