@@ -61,22 +61,20 @@ local Themes = {
 }
 local ActiveTheme = Themes.dark
 
--- Overlay fixo no topo da ScreenGui para listas/menus
-local function getOverlayFor(inst)
-    local sg = inst:FindFirstAncestorWhichIsA("ScreenGui")
-    if not sg then return nil end
-    local overlay = sg:FindFirstChild("__SpliceUI_Overlay")
-    if not overlay then
-        overlay = Instance.new("Frame")
-        overlay.Name = "__SpliceUI_Overlay"
-        overlay.BackgroundTransparency = 1
-        overlay.BorderSizePixel = 0
-        overlay.Size = UDim2.fromScale(1,1)
-        overlay.ZIndex = 1000
-        overlay.Parent = sg
-    end
-    return overlay
+-- Overlay absoluto (sempre acima da janela) para Dropdowns/menus
+local OverlayGui
+local function getOverlayRoot()
+    if OverlayGui and OverlayGui.Parent then return OverlayGui end
+    OverlayGui = Instance.new("ScreenGui")
+    OverlayGui.Name = "SpliceUI_OverlaySG"
+    OverlayGui.ResetOnSpawn = false
+    OverlayGui.IgnoreGuiInset = true
+    OverlayGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    OverlayGui.DisplayOrder = 9000      -- acima da janela; abaixo dos toasts (se quiser, aumente)
+    OverlayGui.Parent = (typeof(resolveParent)=="function" and resolveParent()) or game:GetService("CoreGui")
+    return OverlayGui
 end
+
 
 local ParentOverride = nil
 function SpliceUI.SetParentGui(gui) ParentOverride = gui end
@@ -297,7 +295,7 @@ function Window:AddSection(titleText, tabName)
         BackgroundTransparency = ActiveTheme.Transparency.panel,
         Size = UDim2.new(1, 0, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
-        ClipsDescendants = true,
+        ClipsDescendants = false,
         ZIndex = 8,
     })
     New("UICorner", {CornerRadius = UDim.new(0, ActiveTheme.Corner)}).Parent = card
@@ -310,6 +308,7 @@ function Window:AddSection(titleText, tabName)
     pad.PaddingBottom = UDim.new(0, 10)
     pad.Parent = card
 
+    -- Cabeçalho
     local header = New("Frame", {BackgroundTransparency=1, Size=UDim2.new(1,0,0,22), ZIndex=9})
     header.Parent = card
     New("TextLabel", {
@@ -323,6 +322,7 @@ function Window:AddSection(titleText, tabName)
         ZIndex = 9,
     }).Parent = header
 
+    -- Divider
     New("Frame", {
         BackgroundColor3 = ActiveTheme.Colors.stroke,
         BackgroundTransparency = 0.6,
@@ -331,6 +331,7 @@ function Window:AddSection(titleText, tabName)
         ZIndex = 9,
     }).Parent = card
 
+    -- Corpo com layout vertical + espaçamento
     local body = New("Frame", {
         BackgroundTransparency = 1,
         Size = UDim2.new(1,0,0,0),
@@ -339,15 +340,17 @@ function Window:AddSection(titleText, tabName)
     })
     body.Parent = card
 
-    New("UIListLayout", {
+    local list = New("UIListLayout", {
         Padding = UDim.new(0, 8),
         FillDirection = Enum.FillDirection.Vertical,
         SortOrder = Enum.SortOrder.LayoutOrder,
-    }).Parent = body
+    })
+    list.Parent = body
 
     card.Parent = dest
     return body
 end
+
 
 function SpliceUI.Tabs(parent, tabNames)
   local row = New("Frame",{BackgroundTransparency=1, Size=UDim2.new(1,0,0,40)})
@@ -410,6 +413,7 @@ function SpliceUI.Label(parent, text, opts)
         TextWrapped = true,
         LineHeight = 1.1,
         TextSize = opts.size or 14,
+        ZIndex = 9,
     })
     local pad = Instance.new("UIPadding")
     pad.PaddingBottom = UDim.new(0, 2)
@@ -417,6 +421,7 @@ function SpliceUI.Label(parent, text, opts)
     lbl.Parent = parent
     return lbl
 end
+
 
 function SpliceUI.Button(parent, opts)
   local btn = New("TextButton",{AutoButtonColor=false, BackgroundColor3=ActiveTheme.Colors.panel,
@@ -573,7 +578,7 @@ function SpliceUI.Dropdown(parent, opts)
     New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.5}).Parent = box
     box.Parent = frame
 
-    local overlay = getOverlayFor(box)
+    local overlay = getOverlayRoot()
     local listFrame = Instance.new("Frame")
     listFrame.Name = "List"
     listFrame.BackgroundColor3 = ActiveTheme.Colors.glass
@@ -813,6 +818,15 @@ function WindowMT:NewTab(name)
   if not self._win.Tabs.Pages[name] then
     self._win.Tabs.Add(name)
   end
+
+local pages = New("Frame", {BackgroundTransparency=1, Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y, Name="Pages"})
+pages.Parent = parent
+local pagesPad = Instance.new("UIPadding")
+pagesPad.PaddingTop    = UDim.new(0, 4)
+pagesPad.PaddingBottom = UDim.new(0, 4)
+pagesPad.Parent = pages
+
+  
   local obj = setmetatable({ _win=self._win, _name=name }, TabMT)
   self._tabs[name]=obj
   self._win.Tabs.Select(name)
