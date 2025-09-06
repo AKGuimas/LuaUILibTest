@@ -60,6 +60,24 @@ local Themes = {
 }
 local ActiveTheme = Themes.dark
 
+-- Overlay fixo no topo da ScreenGui para listas/menus
+local function getOverlayFor(inst: Instance)
+    local sg = inst:FindFirstAncestorWhichIsA("ScreenGui")
+    if not sg then return nil end
+    local overlay = sg:FindFirstChild("__SpliceUI_Overlay")
+    if not overlay then
+        overlay = Instance.new("Frame")
+        overlay.Name = "__SpliceUI_Overlay"
+        overlay.BackgroundTransparency = 1
+        overlay.BorderSizePixel = 0
+        overlay.Size = UDim2.fromScale(1,1)
+        overlay.ZIndex = 1000 -- MUITO acima de todo o resto
+        overlay.Parent = sg
+    end
+    return overlay
+end
+
+
 local ParentOverride = nil
 function SpliceUI.SetParentGui(gui) ParentOverride = gui end
 
@@ -266,54 +284,50 @@ function Window:AddSection(titleText: string, tabName: string?)
         dest = self.Tabs.Pages[target]
     end
 
-    -- Card da seção
     local card = New("Frame", {
         BackgroundColor3 = ActiveTheme.Colors.panel,
         BackgroundTransparency = ActiveTheme.Transparency.panel,
         Size = UDim2.new(1, 0, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         ClipsDescendants = true,
+        ZIndex = 8,
     })
     New("UICorner", {CornerRadius = UDim.new(0, ActiveTheme.Corner)}).Parent = card
     New("UIStroke", {Color = ActiveTheme.Colors.stroke, Transparency = 0.65}).Parent = card
 
-    local cardPad = Instance.new("UIPadding")
-    cardPad.PaddingLeft   = UDim.new(0, 12)
-    cardPad.PaddingRight  = UDim.new(0, 12)
-    cardPad.PaddingTop    = UDim.new(0, 10)
-    cardPad.PaddingBottom = UDim.new(0, 10)
-    cardPad.Parent = card
+    local pad = Instance.new("UIPadding")
+    pad.PaddingLeft   = UDim.new(0, 12)
+    pad.PaddingRight  = UDim.new(0, 12)
+    pad.PaddingTop    = UDim.new(0, 10)
+    pad.PaddingBottom = UDim.new(0, 10)
+    pad.Parent = card
 
-    -- Header da seção
-    local header = New("Frame", {
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, 22),
-    })
+    local header = New("Frame", {BackgroundTransparency=1, Size=UDim2.new(1,0,0,22), ZIndex=9})
     header.Parent = card
-
     New("TextLabel", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, -8, 1, 0),
+        Size = UDim2.new(1,-8,1,0),
         Font = ActiveTheme.Font,
         Text = titleText or "Seção",
         TextColor3 = ActiveTheme.Colors.subtext,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextSize = 15,
+        ZIndex = 9,
     }).Parent = header
 
-    -- Linha separadora
     New("Frame", {
         BackgroundColor3 = ActiveTheme.Colors.stroke,
         BackgroundTransparency = 0.6,
         BorderSizePixel = 0,
-        Size = UDim2.new(1, 0, 0, 1),
+        Size = UDim2.new(1,0,0,1),
+        ZIndex = 9,
     }).Parent = card
 
-    -- Corpo (onde os controles da seção ficam)
     local body = New("Frame", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, 0),
+        Size = UDim2.new(1,0,0,0),
         AutomaticSize = Enum.AutomaticSize.Y,
+        ZIndex = 9,
     })
     body.Parent = card
 
@@ -524,55 +538,150 @@ function SpliceUI.Input(parent, opts)
   return { Instance=box, Get=function() return box.Text end, Set=function(t) box.Text=t SpliceUI.SetState(id,t) end, Changed=box:GetPropertyChangedSignal("Text") }
 end
 
-function SpliceUI.Dropdown(parent, opts)
-  local id = opts.key or ("dropdown_"..tostring(math.random(1,1e9)))
-  local value = SpliceUI.GetState(id, opts.default or (opts.items[1] or ""))
-  local frame = New("Frame",{BackgroundTransparency=1, Size=UDim2.new(1,0,0,36)})
-  local label = New("TextLabel",{BackgroundTransparency=1, Size=UDim2.new(0.35,0,1,0), Font=ActiveTheme.Font,
-    Text=opts.text or "Dropdown", TextColor3=ActiveTheme.Colors.text, TextXAlignment=Enum.TextXAlignment.Left, TextSize=16})
-  label.Parent=frame
-  local box = New("TextButton",{AutoButtonColor=false, BackgroundColor3=ActiveTheme.Colors.panel,
-    BackgroundTransparency=ActiveTheme.Transparency.panel, Size=UDim2.new(0.65,0,1,0), Position=UDim2.new(0.35,8,0,0),
-    Text=value, Font=ActiveTheme.Font, TextSize=16, TextColor3=ActiveTheme.Colors.text})
-  New("UICorner",{CornerRadius=UDim.new(0,ActiveTheme.Corner)}).Parent=box
-  New("UIStroke",{Color=ActiveTheme.Colors.stroke, Transparency=0.5}).Parent=box
-  box.Parent=frame
+function SpliceUI.Dropdown(parent: Instance, opts: {text: string, items: {string}, default: string?, key: string?})
+    local id = opts.key or ("dropdown_"..HttpService:GenerateGUID(false))
+    local value = SpliceUI.GetState(id, opts.default or (opts.items[1] or ""))
 
-  -- Overlay fora do clip
-  local overlayParent = resolveParent()
-  local listFrame = New("Frame",{BackgroundColor3=ActiveTheme.Colors.glass, BackgroundTransparency=ActiveTheme.Transparency.glass,
-    Size=UDim2.fromOffset(0,0), BorderSizePixel=0, Visible=false, ZIndex=300})
-  New("UICorner",{CornerRadius=UDim.new(0,ActiveTheme.Corner)}).Parent=listFrame
-  New("UIStroke",{Color=ActiveTheme.Colors.stroke, Transparency=0.4}).Parent=listFrame
-  listFrame.Parent = overlayParent
+    local frame = New("Frame", {BackgroundTransparency=1, Size=UDim2.new(1,0,0,36)})
+    local label = New("TextLabel", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(0.35,0,1,0),
+        Font = ActiveTheme.Font,
+        Text = opts.text or "Dropdown",
+        TextColor3 = ActiveTheme.Colors.text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextSize = 16,
+    }); label.Parent = frame
 
-  local uilist = New("UIListLayout",{Padding=UDim.new(0,4)}) uilist.Parent=listFrame
+    local box = New("TextButton", {
+        AutoButtonColor = false,
+        BackgroundColor3 = ActiveTheme.Colors.panel,
+        BackgroundTransparency = ActiveTheme.Transparency.panel,
+        Size = UDim2.new(0.65,0,1,0),
+        Position = UDim2.new(0.35,8,0,0),
+        Text = value,
+        Font = ActiveTheme.Font,
+        TextSize = 16,
+        TextColor3 = ActiveTheme.Colors.text,
+        ClipsDescendants = false,
+        ZIndex = 20,
+    })
+    New("UICorner", {CornerRadius=UDim.new(0,ActiveTheme.Corner)}).Parent = box
+    New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.5}).Parent = box
+    box.Parent = frame
 
-  local function positionList()
-    local p = box.AbsolutePosition; local s = box.AbsoluteSize
-    listFrame.Position = UDim2.fromOffset(p.X, p.Y + s.Y + 4)
-    listFrame.Size = UDim2.fromOffset(s.X, listFrame.Size.Y.Offset)
-  end
-  local function open()
-    positionList() listFrame.Visible=true
-    PlayTween(listFrame, TweenInfo.new(0.12), {Size=UDim2.fromOffset(box.AbsoluteSize.X, (#opts.items)*30 + 10)})
-  end
-  local function close()
-    PlayTween(listFrame, TweenInfo.new(0.12), {Size=UDim2.fromOffset(box.AbsoluteSize.X, 0)}).Completed:Wait()
-    listFrame.Visible=false
-  end
-  box.MouseButton1Click:Connect(function() if listFrame.Visible then close() else open() end end)
-  RunService.RenderStepped:Connect(function() if listFrame.Visible then positionList() end end)
-  UserInputService.InputBegan:Connect(function(input, gpe)
-    if gpe or not listFrame.Visible then return end
-    if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
-    local pos = input.Position
-    local a = listFrame.AbsolutePosition; local s=listFrame.AbsoluteSize
-    local insideList = (pos.X>=a.X and pos.X<=a.X+s.X and pos.Y>=a.Y and pos.Y<=a.Y+s.Y)
-    local bA=box.AbsolutePosition; local bS=box.AbsoluteSize
-    local insideBox = (pos.X>=bA.X and pos.X<=bA.X+bS.X and pos.Y>=bA.Y and pos.Y<=bA.Y+bS.Y)
-    if not insideList and not insideBox then close() end
-  end)
+    -- overlay de topo na MESMA ScreenGui
+    local overlay = getOverlayFor(box)
+    local listFrame = Instance.new("Frame")
+    listFrame.Name = "List"
+    listFrame.BackgroundColor3 = ActiveTheme.Colors.glass
+    listFrame.BackgroundTransparency = ActiveTheme.Transparency.glass
+    listFrame.BorderSizePixel = 0
+    listFrame.Visible = false
+    listFrame.Size = UDim2.fromOffset(0,0)
+    listFrame.ZIndex = 2000
+    listFrame.Parent = overlay
+
+    New("UICorner", {CornerRadius=UDim.new(0,ActiveTheme.Corner)}).Parent = listFrame
+    New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.4}).Parent = listFrame
+
+    local uilist = New("UIListLayout", {Padding=UDim.new(0,4)}); uilist.Parent = listFrame
+
+    local function positionList()
+        local p = box.AbsolutePosition
+        local s = box.AbsoluteSize
+        listFrame.Position = UDim2.fromOffset(p.X, p.Y + s.Y + 4)
+        listFrame.Size = UDim2.fromOffset(s.X, listFrame.Size.Y.Offset)
+    end
+
+    local function open()
+        positionList()
+        listFrame.Visible = true
+        TweenService:Create(
+            listFrame,
+            TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Size = UDim2.fromOffset(box.AbsoluteSize.X, #opts.items*30 + 10)}
+        ):Play()
+    end
+
+    local function close()
+        local tw = TweenService:Create(
+            listFrame,
+            TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+            {Size = UDim2.fromOffset(box.AbsoluteSize.X, 0)}
+        )
+        tw.Completed:Connect(function() listFrame.Visible = false end)
+        tw:Play()
+    end
+
+    box.MouseButton1Click:Connect(function()
+        if listFrame.Visible then close() else open() end
+    end)
+
+    -- reposiciona se a tela mudar / enquanto visível
+    RunService.RenderStepped:Connect(function()
+        if listFrame.Visible then positionList() end
+    end)
+
+    -- fecha ao clicar fora
+    UserInputService.InputBegan:Connect(function(input, gpe)
+        if gpe or not listFrame.Visible then return end
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+
+        local pos = input.Position
+        local a = listFrame.AbsolutePosition
+        local s = listFrame.AbsoluteSize
+        local inList = (pos.X>=a.X and pos.X<=a.X+s.X and pos.Y>=a.Y and pos.Y<=a.Y+s.Y)
+
+        local bA = box.AbsolutePosition
+        local bS = box.AbsoluteSize
+        local inBox = (pos.X>=bA.X and pos.X<=bA.X+bS.X and pos.Y>=bA.Y and pos.Y<=bA.Y+bS.Y)
+
+        if not inList and not inBox then
+            close()
+        end
+    end)
+
+    local function set(v: string)
+        value = v
+        SpliceUI.SetState(id, value)
+        box.Text = value
+        close()
+    end
+
+    for _,item in ipairs(opts.items) do
+        local opt = New("TextButton", {
+            AutoButtonColor = false,
+            BackgroundColor3 = ActiveTheme.Colors.panel,
+            BackgroundTransparency = ActiveTheme.Transparency.panel,
+            Size = UDim2.new(1,-8,0,26),
+            Text = item,
+            Font = ActiveTheme.Font,
+            TextSize = 14,
+            TextColor3 = ActiveTheme.Colors.text,
+            ZIndex = 2001,
+        })
+        New("UICorner", {CornerRadius=UDim.new(0,10)}).Parent = opt
+        New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.6}).Parent = opt
+        opt.MouseEnter:Connect(function()
+            PlayTween(opt, TweenInfo.new(0.08), {BackgroundColor3=ActiveTheme.Colors.glass, BackgroundTransparency=ActiveTheme.Transparency.glass})
+        end)
+        opt.MouseLeave:Connect(function()
+            PlayTween(opt, TweenInfo.new(0.12), {BackgroundColor3=ActiveTheme.Colors.panel, BackgroundTransparency=ActiveTheme.Transparency.panel})
+        end)
+        opt.MouseButton1Click:Connect(function() set(item) end)
+        opt.Parent = listFrame
+    end
+
+    frame.Parent = parent
+    return {
+        Instance = frame,
+        Get = function() return value end,
+        Set = set,
+        Changed = Instance.new("BindableEvent"),
+    }
+end
+
 
   local function set(v)
     value=v; SpliceUI.SetState(id,value); box.Text=value; close()
