@@ -9,6 +9,7 @@
 -- Sec:NewSlider("Potência", "0..100", 0, 100, function(v) print("Slider:", v) end)
 -- Sec:NewDropdown("Perfil", "", {"Padrão","Rápido","Lento"}, function(v) print("Perfil:", v) end)
 -- Sec:NewTextBox("Comando", "Digite e Enter…", function(t) print("Textbox:", t) end)
+local HttpService = game:GetService("HttpService")
 
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -217,16 +218,16 @@ function Window.new(opts)
 
   local btnClose = New("TextButton",{AutoButtonColor=false, Size=UDim2.fromOffset(28,28), Position=UDim2.new(1,-36,0.5,0),
     AnchorPoint=Vector2.new(0.5,0.5), BackgroundColor3=ActiveTheme.Colors.accent, BackgroundTransparency=0.05,
-    Text="✕", TextColor3=Color3.new(1,1,1), Font=ActiveTheme.Font, TextSize=16, ZIndex=5})
+    Text="", TextColor3=Color3.new(1,1,1), Font=ActiveTheme.Font, TextSize=16, ZIndex=5})
   New("UICorner",{CornerRadius=UDim.new(0,10)}).Parent=btnClose
   New("UIStroke",{Color=ActiveTheme.Colors.stroke, Transparency=0.6}).Parent=btnClose
   btnClose.Parent = top
 
-  PaintXIcon(btnclose)
+  PaintXIcon(btnClose)
 
   local btnMin = New("TextButton",{AutoButtonColor=false, Size=UDim2.fromOffset(28,28), Position=UDim2.new(1,-72,0.5,0),
     AnchorPoint=Vector2.new(0.5,0.5), BackgroundColor3=ActiveTheme.Colors.panel,
-    BackgroundTransparency=ActiveTheme.Transparency.panel, Text="–", TextColor3=ActiveTheme.Colors.text,
+    BackgroundTransparency=ActiveTheme.Transparency.panel, Text="", TextColor3=ActiveTheme.Colors.text,
     Font=ActiveTheme.Font, TextSize=16, ZIndex=5})
   New("UICorner",{CornerRadius=UDim.new(0,10)}).Parent=btnMin
   New("UIStroke",{Color=ActiveTheme.Colors.stroke, Transparency=0.6}).Parent=btnMin
@@ -641,13 +642,6 @@ function SpliceUI.Dropdown(parent: Instance, opts: {text: string, items: {string
             close()
         end
     end)
-
-    local function set(v: string)
-        value = v
-        SpliceUI.SetState(id, value)
-        box.Text = value
-        close()
-    end
 
     for _,item in ipairs(opts.items) do
         local opt = New("TextButton", {
