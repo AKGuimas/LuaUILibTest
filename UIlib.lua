@@ -270,7 +270,12 @@ function Window.new(opts)
       PlayTween(bg, TweenInfo.new(0.22), {Size=UDim2.fromScale(1,1)})
     end
   end)
-  btnClose.MouseButton1Click:Connect(function() root:Destroy() end)
+  
+btnClose.MouseButton1Click:Connect(function()
+  if OverlayGui then OverlayGui:Destroy() OverlayGui = nil end
+  if notifyRoot then notifyRoot:Destroy() notifyRoot, notifyList = nil, nil end
+  root:Destroy()
+end)
 
   local self = setmetatable({
     Gui=root, Window=container, Panel=bg, Topbar=top, Content=content,
@@ -357,8 +362,19 @@ function SpliceUI.Tabs(parent, tabNames)
   row.Parent = parent
   New("UIListLayout",{FillDirection=Enum.FillDirection.Horizontal, Padding=UDim.new(0,8), SortOrder=Enum.SortOrder.LayoutOrder}).Parent=row
 
-  local pages = New("Frame",{BackgroundTransparency=1, Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y, Name="Pages"})
-  pages.Parent = parent
+  local pages = New("Frame", {
+  BackgroundTransparency = 1,
+  Size = UDim2.new(1,0,0,0),
+  AutomaticSize = Enum.AutomaticSize.Y,
+  Name = "Pages"
+})
+pages.Parent = parent
+
+local pagesPad = Instance.new("UIPadding")
+pagesPad.PaddingTop    = UDim.new(0, 4)
+pagesPad.PaddingBottom = UDim.new(0, 4)
+pagesPad.Parent = pages
+
 
   local tabPages, tabs, current = {}, {}, nil
   local function selectTab(name)
@@ -818,17 +834,8 @@ function WindowMT:NewTab(name)
   if not self._win.Tabs.Pages[name] then
     self._win.Tabs.Add(name)
   end
-
-local pages = New("Frame", {BackgroundTransparency=1, Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y, Name="Pages"})
-pages.Parent = parent
-local pagesPad = Instance.new("UIPadding")
-pagesPad.PaddingTop    = UDim.new(0, 4)
-pagesPad.PaddingBottom = UDim.new(0, 4)
-pagesPad.Parent = pages
-
-  
-  local obj = setmetatable({ _win=self._win, _name=name }, TabMT)
-  self._tabs[name]=obj
+  local obj = setmetatable({ _win = self._win, _name = name }, TabMT)
+  self._tabs[name] = obj
   self._win.Tabs.Select(name)
   return obj
 end
