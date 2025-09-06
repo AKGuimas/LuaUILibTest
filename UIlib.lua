@@ -513,55 +513,98 @@ local function getNotifyRoot()
   return notifyRoot, notifyList
 end
 
+-- === SUBSTITUIR a função SpliceUI.Notify por esta ===
 function SpliceUI.Notify(message, duration)
-  duration = tonumber(duration) or 2
-  local _,list = getNotifyRoot()
-  local toast = Instance.new("Frame")
-  toast.Name="Toast"; toast.Size=UDim2.fromOffset(360,56)
-  toast.BackgroundColor3=ActiveTheme.Colors.glass; toast.BackgroundTransparency=ActiveTheme.Transparency.glass
-  toast.BorderSizePixel=0; toast.LayoutOrder=-os.clock(); toast.Parent=list
-  local corner=Instance.new("UICorner") corner.CornerRadius=UDim.new(0,12) corner.Parent=toast
-  local stroke=Instance.new("UIStroke") stroke.Color=ActiveTheme.Colors.stroke stroke.Transparency=0.4 stroke.Parent=toast
+    duration = tonumber(duration) or 2
+    local _, list = getNotifyRoot()
 
-  local label=Instance.new("TextLabel")
-  label.BackgroundTransparency=1; label.Size=UDim2.new(1,-74,1,0); label.Position=UDim2.fromOffset(14,0)
-  label.Font=ActiveTheme.Font; label.Text=message; label.TextColor3=ActiveTheme.Colors.text
-  label.TextWrapped=true; label.TextXAlignment=Enum.TextXAlignment.Left; label.TextYAlignment=Enum.TextYAlignment.Center; label.TextSize=16
-  label.Parent=toast
+    local toast = Instance.new("Frame")
+    toast.Name = "Toast"
+    toast.Size = UDim2.fromOffset(360,56)
+    toast.BackgroundColor3 = ActiveTheme.Colors.glass
+    toast.BackgroundTransparency = ActiveTheme.Transparency.glass
+    toast.BorderSizePixel = 0
+    toast.LayoutOrder = -time()
+    toast.Parent = list
 
-  local counter=Instance.new("TextLabel")
-  counter.BackgroundTransparency=1; counter.Size=UDim2.fromOffset(60,20); counter.Position=UDim2.new(1,-62,0,8)
-  counter.Font=ActiveTheme.Font; counter.TextColor3=ActiveTheme.Colors.subtext; counter.TextSize=14
-  counter.TextXAlignment=Enum.TextXAlignment.Right; counter.Text=string.format("%.1fs", duration)
-  counter.Parent=toast
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0,12)
+    corner.Parent = toast
 
-  local bar=Instance.new("Frame")
-  bar.BackgroundColor3=ActiveTheme.Colors.accent; bar.BackgroundTransparency=0.1; bar.BorderSizePixel=0
-  bar.AnchorPoint=Vector2.new(0,1); bar.Position=UDim2.new(0,14,1,-8); bar.Size=UDim2.new(0,0,0,4); bar.Parent=toast
-  local barC=Instance.new("UICorner") barC.CornerRadius=UDim.new(0,2) barC.Parent=bar
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = ActiveTheme.Colors.stroke
+    stroke.Transparency = 0.4
+    stroke.Parent = toast
 
-  toast.BackgroundTransparency=1; label.TextTransparency=1; counter.TextTransparency=1
-  TweenService:Create(toast, TweenInfo.new(0.18), {BackgroundTransparency=ActiveTheme.Transparency.glass}):Play()
-  TweenService:Create(label, TweenInfo.new(0.18), {TextTransparency=0}):Play()
-  TweenService:Create(counter, TweenInfo.new(0.18), {TextTransparency=0}):Play()
-  TweenService:Create(bar, TweenInfo.new(duration), {Size=UDim2.new(1,-28,0,4)}):Play()
+    local label = Instance.new("TextLabel")
+    label.BackgroundTransparency = 1
+    label.Size = UDim2.new(1,-74,1,0)
+    label.Position = UDim2.fromOffset(14,0)
+    label.Font = ActiveTheme.Font
+    label.Text = message
+    label.TextColor3 = ActiveTheme.Colors.text
+    label.TextWrapped = true
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.TextYAlignment = Enum.TextYAlignment.Center
+    label.TextSize = 16
+    label.Parent = toast
 
-  local start=os.clock(); local alive=true
-  local hb = RunService.Heartbeat:Connect(function()
-    if not alive then return end
-    local left = math.max(0, duration - (os.clock()-start))
-    counter.Text = string.format("%.1fs", left)
-    if left<=0 then
-      alive=false; hb:Disconnect()
-      local t1=TweenService:Create(toast, TweenInfo.new(0.18), {BackgroundTransparency=1})
-      local t2=TweenService:Create(label, TweenInfo.new(0.18), {TextTransparency=1})
-      local t3=TweenService:Create(counter, TweenInfo.new(0.18), {TextTransparency=1})
-      t1:Play(); t2:Play(); t3:Play()
-      t1.Completed:Connect(function() toast:Destroy() end)
+    local counter = Instance.new("TextLabel")
+    counter.BackgroundTransparency = 1
+    counter.Size = UDim2.fromOffset(60,20)
+    counter.Position = UDim2.new(1,-62,0,8)
+    counter.Font = ActiveTheme.Font
+    counter.TextColor3 = ActiveTheme.Colors.subtext
+    counter.TextSize = 14
+    counter.TextXAlignment = Enum.TextXAlignment.Right
+    counter.Text = string.format("%.1fs", duration)
+    counter.Parent = toast
+
+    local bar = Instance.new("Frame")
+    bar.BackgroundColor3 = ActiveTheme.Colors.accent
+    bar.BackgroundTransparency = 0.1
+    bar.BorderSizePixel = 0
+    bar.AnchorPoint = Vector2.new(0,1)
+    bar.Position = UDim2.new(0,14,1,-8)
+    bar.Size = UDim2.new(0,0,0,4)
+    bar.Parent = toast
+    local barC = Instance.new("UICorner")
+    barC.CornerRadius = UDim.new(0,2)
+    barC.Parent = bar
+
+    -- fade-in
+    toast.BackgroundTransparency = 1
+    label.TextTransparency = 1
+    counter.TextTransparency = 1
+    TweenService:Create(toast, TweenInfo.new(0.18), {BackgroundTransparency=ActiveTheme.Transparency.glass}):Play()
+    TweenService:Create(label, TweenInfo.new(0.18), {TextTransparency=0}):Play()
+    TweenService:Create(counter, TweenInfo.new(0.18), {TextTransparency=0}):Play()
+    TweenService:Create(bar, TweenInfo.new(duration), {Size=UDim2.new(1,-28,0,4)}):Play()
+
+    -- contador + desligamento garantido
+    local endTime = time() + duration
+    local updConn
+    updConn = RunService.Heartbeat:Connect(function()
+        local left = math.max(0, endTime - time())
+        counter.Text = string.format("%.1fs", left)
+        if left <= 0 and updConn then updConn:Disconnect() updConn=nil end
+    end)
+
+    local function fadeOut()
+        if updConn then updConn:Disconnect() updConn=nil end
+        local t1 = TweenService:Create(toast, TweenInfo.new(0.18), {BackgroundTransparency=1})
+        local t2 = TweenService:Create(label, TweenInfo.new(0.18), {TextTransparency=1})
+        local t3 = TweenService:Create(counter, TweenInfo.new(0.18), {TextTransparency=1})
+        t1.Completed:Connect(function() if toast then toast:Destroy() end end)
+        t1:Play(); t2:Play(); t3:Play()
     end
-  end)
-  return toast
+
+    -- dispara sempre, mesmo se Heartbeat parar
+    task.delay(duration, fadeOut)
+
+    return toast
 end
+
 
 ---------------------------------------------------------------------
 -- Helpers
