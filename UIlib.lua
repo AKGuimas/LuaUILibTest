@@ -9,15 +9,15 @@
 -- Sec:NewSlider("Potência", "0..100", 0, 100, function(v) print("Slider:", v) end)
 -- Sec:NewDropdown("Perfil", "", {"Padrão","Rápido","Lento"}, function(v) print("Perfil:", v) end)
 -- Sec:NewTextBox("Comando", "Digite e Enter…", function(t) print("Textbox:", t) end)
-local HttpService = game:GetService("HttpService")
 
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
+local TweenService      = game:GetService("TweenService")
+local UserInputService  = game:GetService("UserInputService")
+local RunService        = game:GetService("RunService")
+local Players           = game:GetService("Players")
+local HttpService       = game:GetService("HttpService") -- ✅ necessário p/ GenerateGUID
 
 local LOCAL_PLAYER = Players.LocalPlayer
-local PLAYER_GUI = LOCAL_PLAYER:WaitForChild("PlayerGui")
+local PLAYER_GUI   = LOCAL_PLAYER:WaitForChild("PlayerGui")
 
 ---------------------------------------------------------------------
 -- Núcleo (tema + utilitários)
@@ -62,7 +62,7 @@ local Themes = {
 local ActiveTheme = Themes.dark
 
 -- Overlay fixo no topo da ScreenGui para listas/menus
-local function getOverlayFor(inst: Instance)
+local function getOverlayFor(inst)
     local sg = inst:FindFirstAncestorWhichIsA("ScreenGui")
     if not sg then return nil end
     local overlay = sg:FindFirstChild("__SpliceUI_Overlay")
@@ -72,12 +72,11 @@ local function getOverlayFor(inst: Instance)
         overlay.BackgroundTransparency = 1
         overlay.BorderSizePixel = 0
         overlay.Size = UDim2.fromScale(1,1)
-        overlay.ZIndex = 1000 -- MUITO acima de todo o resto
+        overlay.ZIndex = 1000
         overlay.Parent = sg
     end
     return overlay
 end
-
 
 local ParentOverride = nil
 function SpliceUI.SetParentGui(gui) ParentOverride = gui end
@@ -126,8 +125,8 @@ local function MakeDraggable(frame, handle)
   end)
 end
 
--- Ícones vetoriais (sem asset): X e traço
-local function PaintXIcon(btn: GuiButton)
+-- Ícones vetoriais simples (sem assets)
+local function PaintXIcon(btn)
     local a = Instance.new("Frame")
     a.Size = UDim2.new(0, 14, 0, 2)
     a.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -137,13 +136,11 @@ local function PaintXIcon(btn: GuiButton)
     a.Rotation = 45
     a.ZIndex = btn.ZIndex + 1
     a.Parent = btn
-
     local b = a:Clone()
     b.Rotation = -45
     b.Parent = btn
 end
-
-local function PaintMinusIcon(btn: GuiButton)
+local function PaintMinusIcon(btn)
     local m = Instance.new("Frame")
     m.Size = UDim2.new(0, 14, 0, 2)
     m.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -153,7 +150,6 @@ local function PaintMinusIcon(btn: GuiButton)
     m.ZIndex = btn.ZIndex + 1
     m.Parent = btn
 end
-
 
 local function resolveParent()
   if ParentOverride and ParentOverride.Parent then return ParentOverride end
@@ -181,9 +177,7 @@ local function createRoot(name)
 end
 
 function SpliceUI.setTheme(n) if Themes[n] then ActiveTheme = Themes[n] end end
-function SpliceUI.setAccent(c)
-  ActiveTheme.Colors.accent = c
-end
+function SpliceUI.setAccent(c) ActiveTheme.Colors.accent = c end
 
 local State = {}
 function SpliceUI.SetState(k,v) State[k]=v end
@@ -195,44 +189,57 @@ function SpliceUI.GetState(k,default) local v=State[k]; if v==nil then return de
 local Window = {} Window.__index = Window
 function Window.new(opts)
   local root, scale = createRoot("SpliceUI")
-  local container = New("Frame", {Name="Window", Size=opts.size or UDim2.fromOffset(620,480),
-    Position=opts.position or UDim2.fromScale(0.5,0.5), AnchorPoint=Vector2.new(0.5,0.5),
-    BackgroundTransparency=1 }); container.Parent = root
+  local container = New("Frame", {
+    Name="Window", Size=opts.size or UDim2.fromOffset(620,480),
+    Position=opts.position or UDim2.fromScale(0.5,0.5),
+    AnchorPoint=Vector2.new(0.5,0.5), BackgroundTransparency=1
+  })
+  container.Parent = root
 
   local panel = New("Frame",{Name="Panel", Size=UDim2.fromScale(1,1), BackgroundTransparency=1})
   panel.Parent = container
 
   local bg = New("Frame",{Name="Glass", Size=UDim2.fromScale(1,1), BorderSizePixel=0, ZIndex=2})
-  StyleGlass(bg) bg.Parent=panel AddShadow(bg, ActiveTheme.ShadowTransparency)
+  StyleGlass(bg)
+  bg.Parent = panel
+  AddShadow(bg, ActiveTheme.ShadowTransparency)
 
-  local top = New("Frame",{Name="Topbar", BackgroundColor3=ActiveTheme.Colors.panel,
-    BackgroundTransparency=ActiveTheme.Transparency.panel, Size=UDim2.new(1,0,0,42), ZIndex=3})
+  local top = New("Frame",{
+    Name="Topbar", BackgroundColor3=ActiveTheme.Colors.panel,
+    BackgroundTransparency=ActiveTheme.Transparency.panel,
+    Size=UDim2.new(1,0,0,42), ZIndex=3
+  })
   New("UICorner",{CornerRadius=UDim.new(0,ActiveTheme.Corner)}).Parent=top
   New("UIStroke",{Color=ActiveTheme.Colors.stroke, Transparency=0.55}).Parent=top
   top.Parent = bg
 
-  local title = New("TextLabel",{BackgroundTransparency=1, Size=UDim2.new(1,-120,1,0), Position=UDim2.fromOffset(16,0),
+  local title = New("TextLabel",{
+    BackgroundTransparency=1, Size=UDim2.new(1,-120,1,0), Position=UDim2.fromOffset(16,0),
     Font=ActiveTheme.Font, Text=opts.title or "splice.lol", TextColor3=ActiveTheme.Colors.text,
-    TextXAlignment=Enum.TextXAlignment.Left, TextSize=18, ZIndex=4})
+    TextXAlignment=Enum.TextXAlignment.Left, TextSize=18, ZIndex=4
+  })
   title.Parent = top
 
-  local btnClose = New("TextButton",{AutoButtonColor=false, Size=UDim2.fromOffset(28,28), Position=UDim2.new(1,-36,0.5,0),
-    AnchorPoint=Vector2.new(0.5,0.5), BackgroundColor3=ActiveTheme.Colors.accent, BackgroundTransparency=0.05,
-    Text="", TextColor3=Color3.new(1,1,1), Font=ActiveTheme.Font, TextSize=16, ZIndex=5})
+  local btnClose = New("TextButton",{
+    AutoButtonColor=false, Size=UDim2.fromOffset(28,28), Position=UDim2.new(1,-36,0.5,0),
+    AnchorPoint=Vector2.new(0.5,0.5), BackgroundColor3=ActiveTheme.Colors.accent,
+    BackgroundTransparency=0.05, Text="", TextColor3=Color3.new(1,1,1),
+    Font=ActiveTheme.Font, TextSize=16, ZIndex=5
+  })
   New("UICorner",{CornerRadius=UDim.new(0,10)}).Parent=btnClose
   New("UIStroke",{Color=ActiveTheme.Colors.stroke, Transparency=0.6}).Parent=btnClose
   btnClose.Parent = top
+  PaintXIcon(btnClose) -- ✅ corrigido
 
-  PaintXIcon(btnClose)
-
-  local btnMin = New("TextButton",{AutoButtonColor=false, Size=UDim2.fromOffset(28,28), Position=UDim2.new(1,-72,0.5,0),
+  local btnMin = New("TextButton",{
+    AutoButtonColor=false, Size=UDim2.fromOffset(28,28), Position=UDim2.new(1,-72,0.5,0),
     AnchorPoint=Vector2.new(0.5,0.5), BackgroundColor3=ActiveTheme.Colors.panel,
-    BackgroundTransparency=ActiveTheme.Transparency.panel, Text="", TextColor3=ActiveTheme.Colors.text,
-    Font=ActiveTheme.Font, TextSize=16, ZIndex=5})
+    BackgroundTransparency=ActiveTheme.Transparency.panel, Text="",
+    TextColor3=ActiveTheme.Colors.text, Font=ActiveTheme.Font, TextSize=16, ZIndex=5
+  })
   New("UICorner",{CornerRadius=UDim.new(0,10)}).Parent=btnMin
   New("UIStroke",{Color=ActiveTheme.Colors.stroke, Transparency=0.6}).Parent=btnMin
   btnMin.Parent = top
-
   PaintMinusIcon(btnMin)
 
   -- Conteúdo com scroll
@@ -278,8 +285,8 @@ end
 
 function Window:SetScale(s) if self._scale then self._scale.Scale = math.clamp(s,0.7,1.5) end end
 
-function Window:AddSection(titleText: string, tabName: string?)
-    local dest: Instance = self.Content
+function Window:AddSection(titleText, tabName)
+    local dest = self.Content
     local target = tabName or self.ActiveTab
     if self.Tabs and target and self.Tabs.Pages[target] then
         dest = self.Tabs.Pages[target]
@@ -342,13 +349,11 @@ function Window:AddSection(titleText: string, tabName: string?)
     return body
 end
 
-
 function SpliceUI.Tabs(parent, tabNames)
   local row = New("Frame",{BackgroundTransparency=1, Size=UDim2.new(1,0,0,40)})
   row.Parent = parent
   New("UIListLayout",{FillDirection=Enum.FillDirection.Horizontal, Padding=UDim.new(0,8), SortOrder=Enum.SortOrder.LayoutOrder}).Parent=row
 
-  -- páginas (conteúdo) – dentro do Content que já tem scroll
   local pages = New("Frame",{BackgroundTransparency=1, Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y, Name="Pages"})
   pages.Parent = parent
 
@@ -392,12 +397,12 @@ end
 ---------------------------------------------------------------------
 -- Componentes
 ---------------------------------------------------------------------
-function SpliceUI.Label(parent: Instance, text: string, opts: {muted: boolean?, size: number?}?)
+function SpliceUI.Label(parent, text, opts)
     opts = opts or {}
     local lbl = New("TextLabel", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, 0),          -- altura automática
-        AutomaticSize = Enum.AutomaticSize.Y,  -- <<< cresce conforme o texto
+        Size = UDim2.new(1, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
         Font = ActiveTheme.Font,
         Text = text or "",
         TextColor3 = (opts.muted and ActiveTheme.Colors.subtext) or ActiveTheme.Colors.text,
@@ -406,15 +411,12 @@ function SpliceUI.Label(parent: Instance, text: string, opts: {muted: boolean?, 
         LineHeight = 1.1,
         TextSize = opts.size or 14,
     })
-    -- padding inferior suave para não “grudar”
     local pad = Instance.new("UIPadding")
     pad.PaddingBottom = UDim.new(0, 2)
     pad.Parent = lbl
-
     lbl.Parent = parent
     return lbl
 end
-
 
 function SpliceUI.Button(parent, opts)
   local btn = New("TextButton",{AutoButtonColor=false, BackgroundColor3=ActiveTheme.Colors.panel,
@@ -539,7 +541,7 @@ function SpliceUI.Input(parent, opts)
   return { Instance=box, Get=function() return box.Text end, Set=function(t) box.Text=t SpliceUI.SetState(id,t) end, Changed=box:GetPropertyChangedSignal("Text") }
 end
 
-function SpliceUI.Dropdown(parent: Instance, opts: {text: string, items: {string}, default: string?, key: string?})
+function SpliceUI.Dropdown(parent, opts)
     local id = opts.key or ("dropdown_"..HttpService:GenerateGUID(false))
     local value = SpliceUI.GetState(id, opts.default or (opts.items[1] or ""))
 
@@ -571,7 +573,6 @@ function SpliceUI.Dropdown(parent: Instance, opts: {text: string, items: {string
     New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.5}).Parent = box
     box.Parent = frame
 
-    -- overlay de topo na MESMA ScreenGui
     local overlay = getOverlayFor(box)
     local listFrame = Instance.new("Frame")
     listFrame.Name = "List"
@@ -585,7 +586,6 @@ function SpliceUI.Dropdown(parent: Instance, opts: {text: string, items: {string
 
     New("UICorner", {CornerRadius=UDim.new(0,ActiveTheme.Corner)}).Parent = listFrame
     New("UIStroke", {Color=ActiveTheme.Colors.stroke, Transparency=0.4}).Parent = listFrame
-
     local uilist = New("UIListLayout", {Padding=UDim.new(0,4)}); uilist.Parent = listFrame
 
     local function positionList()
@@ -598,19 +598,13 @@ function SpliceUI.Dropdown(parent: Instance, opts: {text: string, items: {string
     local function open()
         positionList()
         listFrame.Visible = true
-        TweenService:Create(
-            listFrame,
-            TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-            {Size = UDim2.fromOffset(box.AbsoluteSize.X, #opts.items*30 + 10)}
-        ):Play()
+        TweenService:Create(listFrame, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Size = UDim2.fromOffset(box.AbsoluteSize.X, #opts.items*30 + 10)}):Play()
     end
 
     local function close()
-        local tw = TweenService:Create(
-            listFrame,
-            TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-            {Size = UDim2.fromOffset(box.AbsoluteSize.X, 0)}
-        )
+        local tw = TweenService:Create(listFrame, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+            {Size = UDim2.fromOffset(box.AbsoluteSize.X, 0)})
         tw.Completed:Connect(function() listFrame.Visible = false end)
         tw:Play()
     end
@@ -618,30 +612,25 @@ function SpliceUI.Dropdown(parent: Instance, opts: {text: string, items: {string
     box.MouseButton1Click:Connect(function()
         if listFrame.Visible then close() else open() end
     end)
+    RunService.RenderStepped:Connect(function() if listFrame.Visible then positionList() end end)
 
-    -- reposiciona se a tela mudar / enquanto visível
-    RunService.RenderStepped:Connect(function()
-        if listFrame.Visible then positionList() end
-    end)
-
-    -- fecha ao clicar fora
     UserInputService.InputBegan:Connect(function(input, gpe)
         if gpe or not listFrame.Visible then return end
         if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
-
         local pos = input.Position
-        local a = listFrame.AbsolutePosition
-        local s = listFrame.AbsoluteSize
+        local a, s = listFrame.AbsolutePosition, listFrame.AbsoluteSize
         local inList = (pos.X>=a.X and pos.X<=a.X+s.X and pos.Y>=a.Y and pos.Y<=a.Y+s.Y)
-
-        local bA = box.AbsolutePosition
-        local bS = box.AbsoluteSize
+        local bA, bS = box.AbsolutePosition, box.AbsoluteSize
         local inBox = (pos.X>=bA.X and pos.X<=bA.X+bS.X and pos.Y>=bA.Y and pos.Y<=bA.Y+bS.Y)
-
-        if not inList and not inBox then
-            close()
-        end
+        if not inList and not inBox then close() end
     end)
+
+    local function set(v)
+        value = v
+        SpliceUI.SetState(id, value)
+        box.Text = value
+        close()
+    end
 
     for _,item in ipairs(opts.items) do
         local opt = New("TextButton", {
@@ -668,34 +657,8 @@ function SpliceUI.Dropdown(parent: Instance, opts: {text: string, items: {string
     end
 
     frame.Parent = parent
-    return {
-        Instance = frame,
-        Get = function() return value end,
-        Set = set,
-        Changed = Instance.new("BindableEvent"),
-    }
+    return { Instance = frame, Get=function() return value end, Set=set, Changed=Instance.new("BindableEvent") }
 end
-
-
-  local function set(v)
-    value=v; SpliceUI.SetState(id,value); box.Text=value; close()
-  end
-
-  for _,item in ipairs(opts.items) do
-    local opt = New("TextButton",{AutoButtonColor=false, BackgroundColor3=ActiveTheme.Colors.panel,
-      BackgroundTransparency=ActiveTheme.Transparency.panel, Size=UDim2.new(1,-8,0,26), Text=item,
-      Font=ActiveTheme.Font, TextSize=14, TextColor3=ActiveTheme.Colors.text, ZIndex=301})
-    New("UICorner",{CornerRadius=UDim.new(0,10)}).Parent=opt
-    New("UIStroke",{Color=ActiveTheme.Colors.stroke, Transparency=0.6}).Parent=opt
-    opt.MouseEnter:Connect(function() PlayTween(opt, TweenInfo.new(0.08), {BackgroundColor3=ActiveTheme.Colors.glass, BackgroundTransparency=ActiveTheme.Transparency.glass}) end)
-    opt.MouseLeave:Connect(function() PlayTween(opt, TweenInfo.new(0.12), {BackgroundColor3=ActiveTheme.Colors.panel, BackgroundTransparency=ActiveTheme.Transparency.panel}) end)
-    opt.MouseButton1Click:Connect(function() set(item) end)
-    opt.Parent=listFrame
-  end
-
-  frame.Parent=parent
-  return { Instance=frame, Get=function() return value end, Set=set, Changed=Instance.new("BindableEvent").Event }
-)
 
 ---------------------------------------------------------------------
 -- Notificações (stack com contador)
@@ -721,7 +684,6 @@ local function getNotifyRoot()
   return notifyRoot, notifyList
 end
 
--- === SUBSTITUIR a função SpliceUI.Notify por esta ===
 function SpliceUI.Notify(message, duration)
     duration = tonumber(duration) or 2
     local _, list = getNotifyRoot()
@@ -780,7 +742,6 @@ function SpliceUI.Notify(message, duration)
     barC.CornerRadius = UDim.new(0,2)
     barC.Parent = bar
 
-    -- fade-in
     toast.BackgroundTransparency = 1
     label.TextTransparency = 1
     counter.TextTransparency = 1
@@ -789,7 +750,6 @@ function SpliceUI.Notify(message, duration)
     TweenService:Create(counter, TweenInfo.new(0.18), {TextTransparency=0}):Play()
     TweenService:Create(bar, TweenInfo.new(duration), {Size=UDim2.new(1,-28,0,4)}):Play()
 
-    -- contador + desligamento garantido
     local endTime = time() + duration
     local updConn
     updConn = RunService.Heartbeat:Connect(function()
@@ -807,12 +767,9 @@ function SpliceUI.Notify(message, duration)
         t1:Play(); t2:Play(); t3:Play()
     end
 
-    -- dispara sempre, mesmo se Heartbeat parar
     task.delay(duration, fadeOut)
-
     return toast
 end
-
 
 ---------------------------------------------------------------------
 -- Helpers
