@@ -289,72 +289,66 @@ end
 function Window:SetScale(s) if self._scale then self._scale.Scale = math.clamp(s,0.7,1.5) end end
 
 function Window:AddSection(titleText, tabName)
-    local dest = self.Content
-    local target = tabName or self.ActiveTab
-    if self.Tabs and target and self.Tabs.Pages[target] then
-        dest = self.Tabs.Pages[target]
-    end
+    local dest   = (self.Tabs and (tabName or self.ActiveTab) and self.Tabs.Pages[tabName or self.ActiveTab]) or self.Content
 
     local card = New("Frame", {
         BackgroundColor3 = ActiveTheme.Colors.panel,
         BackgroundTransparency = ActiveTheme.Transparency.panel,
-        Size = UDim2.new(1, 0, 0, 0),
+        Size = UDim2.new(1,0,0,0),
         AutomaticSize = Enum.AutomaticSize.Y,
         ClipsDescendants = false,
         ZIndex = 8,
     })
-    New("UICorner", {CornerRadius = UDim.new(0, ActiveTheme.Corner)}).Parent = card
-    New("UIStroke", {Color = ActiveTheme.Colors.stroke, Transparency = 0.65}).Parent = card
-
+    New("UICorner",{CornerRadius=UDim.new(0,ActiveTheme.Corner)}).Parent = card
+    New("UIStroke",{Color=ActiveTheme.Colors.stroke, Transparency=0.65}).Parent = card
     local pad = Instance.new("UIPadding")
-    pad.PaddingLeft   = UDim.new(0, 12)
-    pad.PaddingRight  = UDim.new(0, 12)
-    pad.PaddingTop    = UDim.new(0, 10)
-    pad.PaddingBottom = UDim.new(0, 10)
+    pad.PaddingLeft, pad.PaddingRight = UDim.new(0,12), UDim.new(0,12)
+    pad.PaddingTop,  pad.PaddingBottom= UDim.new(0,10), UDim.new(0,10)
     pad.Parent = card
 
-    -- Cabeçalho
-    local header = New("Frame", {BackgroundTransparency=1, Size=UDim2.new(1,0,0,22), ZIndex=9})
+    -- empilhador
+    local stack = Instance.new("UIListLayout")
+    stack.FillDirection = Enum.FillDirection.Vertical
+    stack.SortOrder     = Enum.SortOrder.LayoutOrder
+    stack.Padding       = UDim.new(0,0)
+    stack.Parent        = card
+
+    local header = New("Frame",{BackgroundTransparency=1, Size=UDim2.new(1,0,0,22), ZIndex=9})
+    header.LayoutOrder = 1
     header.Parent = card
-    New("TextLabel", {
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1,-8,1,0),
-        Font = ActiveTheme.Font,
-        Text = titleText or "Seção",
-        TextColor3 = ActiveTheme.Colors.subtext,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextSize = 15,
-        ZIndex = 9,
+    New("TextLabel",{
+        BackgroundTransparency=1, Size=UDim2.new(1,-8,1,0),
+        Font=ActiveTheme.Font, Text=titleText or "Seção",
+        TextColor3=ActiveTheme.Colors.subtext, TextXAlignment=Enum.TextXAlignment.Left, TextSize=15, ZIndex=9
     }).Parent = header
 
-    -- Divider
-    New("Frame", {
-        BackgroundColor3 = ActiveTheme.Colors.stroke,
-        BackgroundTransparency = 0.6,
-        BorderSizePixel = 0,
-        Size = UDim2.new(1,0,0,1),
-        ZIndex = 9,
-    }).Parent = card
-
-    -- Corpo com layout vertical + espaçamento
-    local body = New("Frame", {
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1,0,0,0),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        ZIndex = 9,
+    local divider = New("Frame",{
+        BackgroundColor3=ActiveTheme.Colors.stroke, BackgroundTransparency=0.6,
+        BorderSizePixel=0, Size=UDim2.new(1,0,0,1), ZIndex=9
     })
+    divider.LayoutOrder = 2
+    divider.Parent = card
+
+    local body = New("Frame",{
+        BackgroundTransparency=1, Size=UDim2.new(1,0,0,0),
+        AutomaticSize=Enum.AutomaticSize.Y, ZIndex=9
+    })
+    body.LayoutOrder = 3
     body.Parent = card
 
-    local list = New("UIListLayout", {
-        Padding = UDim.new(0, 8),
-        FillDirection = Enum.FillDirection.Vertical,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-    })
-    list.Parent = body
+    local bodyPad = Instance.new("UIPadding")
+    bodyPad.PaddingTop    = UDim.new(0,6)
+    bodyPad.PaddingBottom = UDim.new(0,2)
+    bodyPad.Parent = body
+
+    New("UIListLayout",{
+        Padding=UDim.new(0,8), FillDirection=Enum.FillDirection.Vertical, SortOrder=Enum.SortOrder.LayoutOrder
+    }).Parent = body
 
     card.Parent = dest
     return body
 end
+
 
 
 function SpliceUI.Tabs(parent, tabNames)
