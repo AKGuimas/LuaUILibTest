@@ -14,7 +14,7 @@ local TweenService      = game:GetService("TweenService")
 local UserInputService  = game:GetService("UserInputService")
 local RunService        = game:GetService("RunService")
 local Players           = game:GetService("Players")
-local HttpService       = game:GetService("HttpService") -- ✅ necessário p/ GenerateGUID
+local HttpService       = game:GetService("HttpService")
 
 local LOCAL_PLAYER = Players.LocalPlayer
 local PLAYER_GUI   = LOCAL_PLAYER:WaitForChild("PlayerGui")
@@ -229,7 +229,7 @@ function Window.new(opts)
   New("UICorner",{CornerRadius=UDim.new(0,10)}).Parent=btnClose
   New("UIStroke",{Color=ActiveTheme.Colors.stroke, Transparency=0.6}).Parent=btnClose
   btnClose.Parent = top
-  PaintXIcon(btnClose) -- ✅ corrigido
+  PaintXIcon(btnClose)
 
   local btnMin = New("TextButton",{
     AutoButtonColor=false, Size=UDim2.fromOffset(28,28), Position=UDim2.new(1,-72,0.5,0),
@@ -869,7 +869,10 @@ function SectionMT:NewColorPicker(text, info, defaultColor, callback)
   local choices = {"Vermelho","Ciano","Verde","Roxo"}
   local d = SpliceUI.Dropdown(self._parent, {text=tostring(text or "Color"), items=choices, default="Vermelho"})
   local function map(c)
-    if c=="Ciano" then return Color3.fromRGB(0,220,255) elseif c=="Verde" then return Color3.fromRGB(40,220,120) elseif c=="Roxo" then return Color3.fromRGB(170,90,255) else return Color3.fromRGB(255,32,32) end
+    if c=="Ciano" then return Color3.fromRGB(0,220,255)
+    elseif c=="Verde" then return Color3.fromRGB(40,220,120)
+    elseif c=="Roxo" then return Color3.fromRGB(170,90,255)
+    else return Color3.fromRGB(255,32,32) end
   end
   local old=d.Set; d.Set=function(v) old(v); if typeof(callback)=="function" then callback(map(v)) end end
   return d
